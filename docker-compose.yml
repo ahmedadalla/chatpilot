@@ -6,32 +6,37 @@ services:
     container_name: chatpilot-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: chatpilot
-      POSTGRES_USER: chatpilot_migrator
-      POSTGRES_PASSWORD: migrator_secret_pass
+      POSTGRES_DB: ${POSTGRES_DB:-chatpilot}
+      POSTGRES_USER: ${POSTGRES_USER:-chatpilot_migrator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-migrator_secret_pass}
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U chatpilot_migrator -d chatpilot']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-chatpilot_migrator} -d ${POSTGRES_DB:-chatpilot}']
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - default
 
   redis:
     image: redis:7-alpine
     container_name: chatpilot-redis
     restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-redis_secret_pass}"]
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD:-redis_secret_pass}', 'ping']
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - default
 
   api:
     build:
@@ -40,23 +45,26 @@ services:
     container_name: chatpilot-api
     restart: unless-stopped
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3001
-      DATABASE_URL: postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public
-      DATABASE_URL_MIGRATOR: postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: super_secret_jwt_signing_key_at_least_32_characters_long_for_security
-      DEFAULT_COUNTRY: EG
-      DEFAULT_CURRENCY: EGP
-      DEFAULT_TIMEZONE: Africa/Cairo
-      DEFAULT_LOCALE: ar-EG
+      DATABASE_URL: ${DATABASE_URL:-postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public}
+      DATABASE_URL_MIGRATOR: ${DATABASE_URL_MIGRATOR:-postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public}
+      REDIS_URL: ${REDIS_URL:-redis://:redis_secret_pass@redis:6379}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_signing_key_at_least_32_characters_long_for_security}
+      DEFAULT_COUNTRY: ${DEFAULT_COUNTRY:-EG}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-EGP}
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Africa/Cairo}
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-ar-EG}
     ports:
-      - '3001:3001'
+      - '127.0.0.1:3001:3001'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - dokploy-network
 
   worker:
     build:
@@ -65,16 +73,18 @@ services:
     container_name: chatpilot-worker
     restart: unless-stopped
     environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public
-      DATABASE_URL_MIGRATOR: postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: super_secret_jwt_signing_key_at_least_32_characters_long_for_security
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public}
+      DATABASE_URL_MIGRATOR: ${DATABASE_URL_MIGRATOR:-postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public}
+      REDIS_URL: ${REDIS_URL:-redis://:redis_secret_pass@redis:6379}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_signing_key_at_least_32_characters_long_for_security}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
 
   whatsapp-worker:
     build:
@@ -83,19 +93,21 @@ services:
     container_name: chatpilot-whatsapp-worker
     restart: unless-stopped
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-production}
       WHATSAPP_WORKER_PORT: 3002
-      DATABASE_URL: postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public
-      DATABASE_URL_MIGRATOR: postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: super_secret_jwt_signing_key_at_least_32_characters_long_for_security
+      DATABASE_URL: ${DATABASE_URL:-postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public}
+      DATABASE_URL_MIGRATOR: ${DATABASE_URL_MIGRATOR:-postgresql://chatpilot_migrator:migrator_secret_pass@postgres:5432/chatpilot?schema=public}
+      REDIS_URL: ${REDIS_URL:-redis://:redis_secret_pass@redis:6379}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_signing_key_at_least_32_characters_long_for_security}
     ports:
-      - '3002:3002'
+      - '127.0.0.1:3002:3002'
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
 
   web:
     build:
@@ -104,13 +116,22 @@ services:
     container_name: chatpilot-web
     restart: unless-stopped
     environment:
-      NODE_ENV: development
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3000
     ports:
-      - '3000:3000'
+      - '127.0.0.1:3005:3000'
     depends_on:
       - api
+    networks:
+      - default
+      - dokploy-network
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  default:
+    driver: bridge
+  dokploy-network:
+    external: true
