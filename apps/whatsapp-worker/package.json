@@ -1,0 +1,25 @@
+{
+  "name": "@chatpilot/whatsapp-worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "@chatpilot/config": "workspace:*",
+    "@chatpilot/contracts": "workspace:*",
+    "@whiskeysockets/baileys": "^6.7.5",
+    "ioredis": "^5.4.1",
+    "pino": "^9.2.0",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/qrcode": "^1.5.5",
+    "typescript": "^5.5.3"
+  }
+}

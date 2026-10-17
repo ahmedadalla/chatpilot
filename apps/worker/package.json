@@ -1,0 +1,24 @@
+{
+  "name": "@chatpilot/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "@chatpilot/config": "workspace:*",
+    "@chatpilot/contracts": "workspace:*",
+    "@chatpilot/database": "workspace:*",
+    "bullmq": "^5.8.5",
+    "ioredis": "^5.4.1",
+    "pino": "^9.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "typescript": "^5.5.3"
+  }
+}

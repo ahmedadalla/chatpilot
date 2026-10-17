@@ -1,0 +1,20 @@
+{
+  "Common": {
+    "title": "ChatPilot",
+    "subtitle": "Conversational Commerce & Intelligent Order Management Platform",
+    "switchLanguage": "العربية",
+    "loading": "Loading..."
+  },
+  "Auth": {
+    "login": "Sign In",
+    "email": "Email Address",
+    "password": "Password"
+  },
+  "WhatsApp": {
+    "connectionTitle": "WhatsApp Connection Setup",
+    "cloudApi": "Official Meta Cloud API Onboarding",
+    "coexistence": "WhatsApp Business App Coexistence",
+    "regularQr": "Regular WhatsApp QR / Device Pairing",
+    "qrDisclaimer": "Notice: QR device pairing is an unofficial connection method not affiliated with Meta. It requires the physical phone to remain powered and connected, and may experience periodic session disconnects."
+  }
+}

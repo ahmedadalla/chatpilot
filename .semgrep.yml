@@ -1,0 +1,54 @@
+rules:
+  - id: no-raw-prisma-outside-database
+    patterns:
+      - pattern-either:
+          - pattern: $PRISMA.$MODEL.$METHOD(...)
+      - metavariable-regex:
+          metavariable: $PRISMA
+          regex: ^(prisma|tx|prismaClient)$
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(findMany|findUnique|findFirst|create|update|updateMany|delete|deleteMany|upsert)$
+    paths:
+      include:
+        - apps/api/src/**/*.ts
+      exclude:
+        - packages/database/**
+        - packages/database/src/**
+        - apps/api/src/seed/**
+    message: "Security Gate A: Direct prisma.<model> access is strictly prohibited outside @chatpilot/database ScopedPrisma."
+    severity: ERROR
+    languages: [typescript, javascript]
+
+  - id: no-platform-scope-outside-support
+    patterns:
+      - pattern-either:
+          - pattern: app_set_scope('platform', ...)
+          - pattern: $FN(..., 'platform', ...)
+    paths:
+      exclude:
+        - apps/api/src/platform/platform-support.service.ts
+        - packages/database/src/tenant-scope.service.ts
+        - tests/**
+    message: "Security Gate B: Setting scope='platform' is strictly restricted to PlatformSupportService."
+    severity: ERROR
+    languages: [typescript, javascript]
+
+  - id: no-raw-sql-templates
+    patterns:
+      - pattern: $TX.$executeRawUnsafe(`...`)
+    message: "Security Gate C: $executeRawUnsafe with template strings is strictly forbidden in GUC and database queries."
+    severity: ERROR
+    languages: [typescript, javascript]
+
+  - id: no-hardcoded-secrets
+    patterns:
+      - pattern-regex: '(?i)(password|secret|jwt_secret|api_key)\s*[:=]\s*["\'][a-zA-Z0-9_\-]{16,}["\']'
+    paths:
+      exclude:
+        - packages/config/src/env.ts
+        - .env.example
+        - tests/**
+    message: "Hardcoded secret or credential detected. Use environment variables and SecretsService."
+    severity: WARNING
+    languages: [typescript, javascript]

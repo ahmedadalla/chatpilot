@@ -1,0 +1,757 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------
+// Canonical Enums
+// ----------------------------------------------------
+
+enum Role {
+  SUPER_ADMIN
+  COMPANY_ADMIN
+  BRANCH_MANAGER
+  KITCHEN
+  DELIVERY
+  STAFF
+}
+
+enum CompanyStatus {
+  INITIATED
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  IN_PREPARATION
+  READY_FOR_DELIVERY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  FAILED_DELIVERY
+}
+
+enum WhatsAppProviderType {
+  CLOUD_API
+  COEXISTENCE
+  REGULAR_QR_PAIRING
+}
+
+enum WhatsAppConnectionStatus {
+  PAIRING_QR_READY
+  CONNECTED
+  DISCONNECTED
+  REQUIRES_REAUTH
+}
+
+enum MessageDirection {
+  IN
+  OUT
+}
+
+enum KbStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  SUSPENDED
+}
+
+// ----------------------------------------------------
+// Tenant Root & Branch Hierarchy
+// ----------------------------------------------------
+
+model Company {
+  id        String        @id @default(uuid()) @db.Uuid
+  slug      String        @unique
+  name      String
+  status    CompanyStatus @default(INITIATED)
+  createdAt DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime      @updatedAt @db.Timestamptz(6)
+
+  settings               CompanySettings?
+  branches               Branch[]
+  users                  User[]
+  invitations            Invitation[]
+  menuCategories         MenuCategory[]
+  menuItems              MenuItem[]
+  orders                 Order[]
+  customers              Customer[]
+  conversations          Conversation[]
+  whatsAppConnections    WhatsAppConnection[]
+  knowledgeBaseDocuments KnowledgeBaseDocument[]
+  knowledgeChunks        KnowledgeChunk[]
+  aiConfiguration        AiConfiguration?
+  subscriptions          Subscription[]
+  usageEvents            UsageEvent[]
+  auditLogs              AuditLog[]
+  dailyStats             CompanyDailyStats[]
+  pendingOrders          PendingOrder[]
+  idempotencyKeys        IdempotencyKey[]
+  files                  File[]
+
+  @@map("companies")
+}
+
+model CompanySettings {
+  id                 String   @id @default(uuid()) @db.Uuid
+  companyId          String   @unique @db.Uuid
+  countryCode        String   @default("EG")
+  defaultCurrency    String   @default("EGP")
+  defaultTimezone    String   @default("Africa/Cairo")
+  defaultLocale      String   @default("ar-EG")
+  defaultCallingCode String   @default("+20")
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("company_settings")
+}
+
+model Branch {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @db.Uuid
+  code           String
+  name           String
+  address        String?
+  timezone       String   @default("Africa/Cairo")
+  isActive       Boolean  @default(true)
+  deliveryFee    Decimal? @default(0) @db.Decimal(12, 2)
+  minOrder       Decimal? @default(0) @db.Decimal(12, 2)
+  operatingHours Json?
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  company                Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users                  User[]
+  invitations            Invitation[]
+  orders                 Order[]
+  conversations          Conversation[]
+  whatsAppConnections    WhatsAppConnection[]
+  menuItemAvailabilities MenuItemAvailability[]
+  branchDayCounters      BranchDayCounter[]
+  pendingOrders          PendingOrder[]
+  dailyStats             BranchDailyStats[]
+  knowledgeBaseDocuments KnowledgeBaseDocument[]
+  knowledgeChunks        KnowledgeChunk[]
+  usageEvents            UsageEvent[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, id]) // Composite unique serving as backstop for composite FKs
+  @@index([companyId])
+  @@map("branches")
+}
+
+// ----------------------------------------------------
+// Identity, Authentication & Sessions
+// ----------------------------------------------------
+
+model User {
+  id                 String    @id @default(uuid()) @db.Uuid
+  email              String    @unique
+  name               String
+  passwordHash       String
+  role               Role
+  companyId          String?   @db.Uuid
+  branchId           String?   @db.Uuid
+  platformCapable    Boolean   @default(false)
+  isVerified         Boolean   @default(false)
+  isActive           Boolean   @default(true)
+  deactivatedAt      DateTime? @db.Timestamptz(6)
+  permissionsVersion Int       @default(1)
+  totpSecret         String?   // Envelope-encrypted TOTP secret for MFA (D-19)
+  totpRecoveryCodes  Json?     // Array of SHA-256 hashed single-use recovery codes
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branch  Branch?  @relation(fields: [companyId, branchId], references: [companyId, id], onDelete: Restrict)
+
+  authSessions        AuthSession[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  orderStatusHistory  OrderStatusHistory[]
+  auditLogs           AuditLog[]
+
+  @@index([companyId])
+  @@index([branchId])
+  @@map("users")
+}
+
+model AuthSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  revokedAt DateTime? @db.Timestamptz(6)
+  expiresAt DateTime  @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@map("auth_sessions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  sessionId String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session AuthSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  expiresAt DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model Invitation {
+  id        String           @id @default(uuid()) @db.Uuid
+  companyId String           @db.Uuid
+  branchId  String?          @db.Uuid
+  email     String
+  role      Role
+  tokenHash String           @unique
+  status    InvitationStatus @default(PENDING)
+  expiresAt DateTime         @db.Timestamptz(6)
+  createdAt DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @db.Timestamptz(6)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch  Branch? @relation(fields: [companyId, branchId], references: [companyId, id], onDelete: Cascade)
+
+  @@unique([companyId, email, role, branchId])
+  @@index([companyId])
+  @@map("invitations")
+}
+
+// ----------------------------------------------------
+// Menu & Catalog
+// ----------------------------------------------------
+
+model MenuCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  menuItems MenuItem[]
+
+  @@index([companyId])
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  categoryId  String   @db.Uuid
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(12, 2)
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  company        Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category       MenuCategory           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  availabilities MenuItemAvailability[]
+  orderItems     OrderItem[]
+
+  @@index([companyId])
+  @@index([categoryId])
+  @@map("menu_items")
+}
+
+model MenuItemAvailability {
+  id            String   @id @default(uuid()) @db.Uuid
+  menuItemId    String   @db.Uuid
+  branchId      String   @db.Uuid
+  isAvailable   Boolean  @default(true)
+  priceOverride Decimal? @db.Decimal(12, 2)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, branchId])
+  @@index([branchId])
+  @@map("menu_item_availabilities")
+}
+
+model File {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  purpose     String
+  storageKey  String
+  filename    String
+  mimeType    String
+  sizeBytes   Int
+  uploadedAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  company                Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  knowledgeBaseDocuments KnowledgeBaseDocument[]
+
+  @@index([companyId])
+  @@map("files")
+}
+
+// ----------------------------------------------------
+// Orders, Lifecycle & Concurrency
+// ----------------------------------------------------
+
+model Order {
+  id             String      @id @default(uuid()) @db.Uuid
+  companyId      String      @db.Uuid
+  branchId       String      @db.Uuid
+  orderNumber    String
+  sequenceDay    DateTime    @db.Date
+  status         OrderStatus @default(PENDING)
+  currency       String      @default("EGP")
+  subtotal       Decimal     @db.Decimal(12, 2)
+  deliveryFee    Decimal     @default(0) @db.Decimal(12, 2)
+  discount       Decimal?    @default(0) @db.Decimal(12, 2)
+  total          Decimal     @db.Decimal(12, 2)
+  customerId     String?     @db.Uuid
+  address        String?
+  phone          String?
+  notes          String?
+  paymentMethod  String      @default("PAY_ON_DELIVERY")
+  source         String      @default("whatsapp")
+  idempotencyKey String?     @unique
+  createdAt      DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(6)
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branch   Branch    @relation(fields: [companyId, branchId], references: [companyId, id], onDelete: Restrict)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  items            OrderItem[]
+  statusHistory    OrderStatusHistory[]
+  transitionTokens OrderTransitionToken[]
+
+  @@unique([branchId, sequenceDay, orderNumber])
+  @@index([companyId, branchId, status, createdAt(sort: Desc)])
+  @@index([companyId, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String   @id @default(uuid()) @db.Uuid
+  orderId           String   @db.Uuid
+  menuItemId        String?  @db.Uuid
+  nameSnapshot      String
+  unitPriceSnapshot Decimal  @db.Decimal(12, 2)
+  quantity          Int
+  lineTotal         Decimal  @db.Decimal(12, 2)
+  notes             String?
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(uuid()) @db.Uuid
+  orderId     String      @db.Uuid
+  fromStatus  OrderStatus
+  toStatus    OrderStatus
+  actorUserId String?     @db.Uuid
+  actorRole   String
+  reason      String?
+  meta        Json?
+  occurredAt  DateTime    @default(now()) @db.Timestamptz(6)
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("order_status_history")
+}
+
+model BranchDayCounter {
+  branchId    String   @db.Uuid
+  sequenceDay DateTime @db.Date
+  seq         Int      @default(0)
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([branchId, sequenceDay])
+  @@map("branch_day_counters")
+}
+
+model OrderTransitionToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @db.Uuid
+  action      String
+  actorUserId String   @db.Uuid
+  status      String
+  result      Json?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, action, actorUserId])
+  @@index([orderId])
+  @@map("order_transition_tokens")
+}
+
+model PendingOrder {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @db.Uuid
+  branchId         String   @db.Uuid
+  conversationId   String   @db.Uuid
+  lines            Json
+  pricesSnapshot   Json
+  confirmTokenHash String
+  status           String   @default("OPEN")
+  expiresAt        DateTime @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
+
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [companyId, branchId], references: [companyId, id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([conversationId])
+  @@map("pending_orders")
+}
+
+model IdempotencyKey {
+  id             String   @id @default(uuid()) @db.Uuid
+  companyId      String   @db.Uuid
+  key            String
+  responseDigest String?
+  lockedAt       DateTime @default(now()) @db.Timestamptz(6)
+  expiresAt      DateTime @db.Timestamptz(6)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@map("idempotency_keys")
+}
+
+// ----------------------------------------------------
+// Customers, Conversations & WhatsApp Integration
+// ----------------------------------------------------
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  phone     String
+  name      String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  orders        Order[]
+
+  @@unique([companyId, phone])
+  @@index([companyId])
+  @@map("customers")
+}
+
+model Conversation {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @db.Uuid
+  branchId         String?  @db.Uuid
+  customerId       String   @db.Uuid
+  channel          String   @default("whatsapp")
+  externalThreadId String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(6)
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch   Branch?   @relation(fields: [companyId, branchId], references: [companyId, id], onDelete: SetNull)
+  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  messages      Message[]
+  pendingOrders PendingOrder[]
+
+  @@index([companyId])
+  @@index([customerId])
+  @@map("conversations")
+}
+
+model Message {
+  id                String           @id @default(uuid()) @db.Uuid
+  conversationId    String           @db.Uuid
+  direction         MessageDirection
+  content           String
+  externalMessageId String?
+  sentAt            DateTime         @default(now()) @db.Timestamptz(6)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+model WhatsAppConnection {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  companyId            String                   @db.Uuid
+  branchId             String?                  @db.Uuid
+  provider             WhatsAppProviderType     @default(CLOUD_API)
+  businessConnectionId String
+  phoneNumber          String?
+  status               WhatsAppConnectionStatus @default(DISCONNECTED)
+  riskAcknowledgedAt   DateTime?                @db.Timestamptz(6)
+  encryptedCredentials String?                  // Envelope-encrypted credentials/session token
+  webhookSecretRef     String?
+  createdAt            DateTime                 @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime                 @updatedAt @db.Timestamptz(6)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch  Branch? @relation(fields: [companyId, branchId], references: [companyId, id], onDelete: SetNull)
+
+  @@unique([provider, businessConnectionId])
+  @@unique([provider, phoneNumber])
+  @@index([companyId])
+  @@map("whatsapp_connections")
+}
+
+model WhatsAppEventDedup {
+  id                String   @id @default(uuid()) @db.Uuid
+  provider          String
+  providerMessageId String
+  receivedAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([provider, providerMessageId])
+  @@map("whatsapp_event_dedup")
+}
+
+// ----------------------------------------------------
+// Knowledge Base & AI Configuration
+// ----------------------------------------------------
+
+model KnowledgeBaseDocument {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @db.Uuid
+  branchId      String?  @db.Uuid
+  title         String
+  fileRef       String?  @db.Uuid
+  status        KbStatus @default(PENDING)
+  extractedText String?
+  meta          Json?
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch  Branch?         @relation(fields: [companyId, branchId], references: [companyId, id], onDelete: Cascade)
+  file    File?           @relation(fields: [fileRef], references: [id], onDelete: SetNull)
+  chunks  KnowledgeChunk[]
+
+  @@index([companyId])
+  @@index([branchId])
+  @@map("knowledge_base_documents")
+}
+
+model KnowledgeChunk {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @db.Uuid
+  companyId  String   @db.Uuid
+  branchId   String?  @db.Uuid
+  content    String
+  positions  Json?
+  metadata   Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+
+  // Note: embedding vector(1536) column and kb_hnsw index are added via raw migration in P7
+  document KnowledgeBaseDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  company  Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch   Branch?               @relation(fields: [companyId, branchId], references: [companyId, id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([branchId])
+  @@index([documentId])
+  @@map("knowledge_chunks")
+}
+
+model AiConfiguration {
+  id                   String   @id @default(uuid()) @db.Uuid
+  companyId            String   @unique @db.Uuid
+  provider             String   @default("gemini")
+  model                String   @default("gemini-1.5-flash")
+  encryptedApiKey      String?
+  systemPromptTemplate String?
+  createdAt            DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("ai_configurations")
+}
+
+// ----------------------------------------------------
+// Subscriptions, Usage & Audit
+// ----------------------------------------------------
+
+model Plan {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  name      String
+  limits    Json
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id               String             @id @default(uuid()) @db.Uuid
+  companyId        String             @db.Uuid
+  planId           String             @db.Uuid
+  status           SubscriptionStatus @default(ACTIVE)
+  currentPeriodEnd DateTime?          @db.Timestamptz(6)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime           @updatedAt @db.Timestamptz(6)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  plan    Plan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@map("subscriptions")
+}
+
+model UsageEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String   @db.Uuid
+  branchId   String?  @db.Uuid
+  metric     String   // order_created, message_sent, ai_tokens, kb_doc
+  amount     Int      @default(1)
+  occurredAt DateTime @default(now()) @db.Timestamptz(6)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  branch  Branch? @relation(fields: [companyId, branchId], references: [companyId, id], onDelete: SetNull)
+
+  @@index([companyId, occurredAt])
+  @@map("usage_events")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String?  @db.Uuid
+  actorUserId String?  @db.Uuid
+  action      String
+  entityType  String
+  entityId    String?
+  details     Json?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  actorUser User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@map("audit_logs")
+}
+
+// ----------------------------------------------------
+// Analytics Rollups
+// ----------------------------------------------------
+
+model PlatformDailyStats {
+  day                     DateTime @id @db.Date
+  totalCompanies          Int      @default(0)
+  activeCompanies         Int      @default(0)
+  totalBranches           Int      @default(0)
+  totalOrders             Int      @default(0)
+  deliveredOrders         Int      @default(0)
+  cancelledOrders         Int      @default(0)
+  failedDeliveryOrders    Int      @default(0)
+  gmvByCurrency           Json     @default("{}") // Per-currency breakdown
+  saasMrrActiveCompanies  Int      @default(0)
+  updatedAt               DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("platform_daily_stats")
+}
+
+model CompanyDailyStats {
+  companyId            String   @db.Uuid
+  day                  DateTime @db.Date
+  totalOrders          Int      @default(0)
+  deliveredOrders      Int      @default(0)
+  cancelledOrders      Int      @default(0)
+  failedDeliveryOrders Int      @default(0)
+  gmvSubtotal          Decimal  @default(0) @db.Decimal(16, 2)
+  gmvDelivery          Decimal  @default(0) @db.Decimal(16, 2)
+  gmvTotal             Decimal  @default(0) @db.Decimal(16, 2)
+  avgOrderValue        Decimal  @default(0) @db.Decimal(12, 2)
+  currency             String   @default("EGP")
+  totalMessages        Int      @default(0)
+  aiTokensUsed         BigInt   @default(0)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([companyId, day])
+  @@map("company_daily_stats")
+}
+
+model BranchDailyStats {
+  companyId            String   @db.Uuid
+  branchId             String   @db.Uuid
+  day                  DateTime @db.Date
+  totalOrders          Int      @default(0)
+  deliveredOrders      Int      @default(0)
+  cancelledOrders      Int      @default(0)
+  failedDeliveryOrders Int      @default(0)
+  gmvSubtotal          Decimal  @default(0) @db.Decimal(16, 2)
+  gmvDelivery          Decimal  @default(0) @db.Decimal(16, 2)
+  gmvTotal             Decimal  @default(0) @db.Decimal(16, 2)
+  avgOrderValue        Decimal  @default(0) @db.Decimal(12, 2)
+  currency             String   @default("EGP")
+  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@id([branchId, day])
+  @@map("branch_daily_stats")
+}
