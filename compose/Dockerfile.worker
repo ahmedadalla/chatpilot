@@ -1,6 +1,6 @@
 FROM node:20-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache git python3 make g++ libc6-compat
+RUN apk add --no-cache git python3 make g++ libc6-compat openssl
 RUN npm install -g pnpm@9.7.0
 
 FROM base AS builder
@@ -10,11 +10,12 @@ COPY prisma/ ./prisma/
 COPY packages/ ./packages/
 COPY apps/worker/ ./apps/worker/
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @chatpilot/database exec prisma generate --schema=../../prisma/schema.prisma
+RUN pnpm exec prisma generate --schema=prisma/schema.prisma
 RUN pnpm --filter @chatpilot/worker build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
+RUN apk add --no-cache openssl libc6-compat
 ENV NODE_ENV=production
 COPY --from=builder /app /app
 CMD ["node", "apps/worker/dist/main.js"]
