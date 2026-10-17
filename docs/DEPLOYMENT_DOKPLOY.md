@@ -66,9 +66,13 @@ ufw allow 22/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 3000/tcp
-ufw enable -y
+ufw --force enable
 
-# 4. Set up Docker's official stable repository (using Ubuntu noble/jammy stable)
+# 4. Clean up any previous held packages or broken docker repository lists
+rm -f /etc/apt/sources.list.d/docker.list
+apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras 2>/dev/null || true
+
+# 5. Set up Docker's official stable repository (using Ubuntu noble stable)
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
@@ -77,15 +81,16 @@ echo \
   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
   noble stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# 5. Install Docker Engine, containerd, and Compose plugin
+# 6. Install Docker Engine, containerd, and Compose plugin
 apt update
-apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+apt-get install -y --allow-change-held-packages docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# 6. Enable and start Docker daemon
+# 7. Enable and start Docker daemon
+systemctl daemon-reload
 systemctl enable --now docker
 docker --version
 
-# 7. Initialize Docker Swarm (mandatory for Dokploy orchestrator)
+# 8. Initialize Docker Swarm (mandatory for Dokploy orchestrator)
 docker swarm init || true
 ```
 
