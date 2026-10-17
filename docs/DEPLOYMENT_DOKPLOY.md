@@ -48,33 +48,53 @@ Open your terminal (PowerShell, Git Bash, or macOS Terminal):
 ssh root@YOUR_VPS_IP
 ```
 
-### Step 2: Update Server & Configure Firewall
-Run these commands to update Ubuntu packages and configure the UFW firewall:
+### Step 2: Update Server, Configure Firewall & Install Docker Properly
+
+To prevent repository mismatch errors (such as `ERROR: '28.5.0' not found amongst apt-cache madison results` or `docker: not found`), install Docker Engine explicitly using Ubuntu's stable repository before running Dokploy:
+
 ```bash
-# Update package lists and upgrade existing software
+# 1. Update package lists and upgrade existing software
 apt update && apt upgrade -y
 
-# Install essential tools
-apt install -y curl ufw git fail2ban
+# 2. Install essential tools
+apt install -y ca-certificates curl gnupg ufw git fail2ban
 
-# Configure firewall: Allow SSH, HTTP, HTTPS, and Dokploy initial port
+# 3. Configure firewall: Allow SSH, HTTP, HTTPS, and Dokploy initial setup port
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow 22/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 3000/tcp
-
-# Enable firewall
 ufw enable -y
+
+# 4. Set up Docker's official stable repository (using Ubuntu noble/jammy stable)
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  noble stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# 5. Install Docker Engine, containerd, and Compose plugin
+apt update
+apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# 6. Enable and start Docker daemon
+systemctl enable --now docker
+docker --version
+
+# 7. Initialize Docker Swarm (mandatory for Dokploy orchestrator)
+docker swarm init || true
 ```
 
-### Step 3: Install Dokploy
-Run the official Dokploy one-line automated installer:
+### Step 3: Run the Dokploy Installer
+With Docker and Swarm already running on your VPS, run the Dokploy installer:
 ```bash
 curl -sSL https://dokploy.com/install.sh | sh
 ```
-The installer will automatically install Docker, Docker Compose, Traefik reverse proxy, and start the Dokploy management service.
+Dokploy will detect that Docker is already installed, pull its management images, and start immediately without package errors.
 
 When installation finishes, you will see:
 ```
