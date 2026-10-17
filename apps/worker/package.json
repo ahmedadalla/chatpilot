@@ -13,12 +13,12 @@
     "@chatpilot/config": "workspace:*",
     "@chatpilot/contracts": "workspace:*",
     "@chatpilot/database": "workspace:*",
-    "bullmq": "^5.8.5",
-    "ioredis": "^5.4.1",
-    "pino": "^9.2.0"
+    "bullmq": "^6.3.15",
+    "ioredis": "^6.0.0",
+    "pino": "^10.4.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
-    "typescript": "^5.5.3"
+    "typescript": "^7.0.2"
   }
 }
