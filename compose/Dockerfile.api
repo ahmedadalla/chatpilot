@@ -5,11 +5,11 @@ RUN npm install -g pnpm@9.7.0
 
 FROM base AS builder
 WORKDIR /app
-COPY pnpm-workspace.yaml package.json turbo.json tsconfig.base.json .eslintrc.js .prettierrc ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json tsconfig.base.json .eslintrc.js .prettierrc ./
 COPY prisma/ ./prisma/
 COPY packages/ ./packages/
 COPY apps/api/ ./apps/api/
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @chatpilot/database exec prisma generate --schema=../../prisma/schema.prisma
 RUN pnpm --filter @chatpilot/api build
 
