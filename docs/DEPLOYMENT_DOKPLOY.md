@@ -53,7 +53,16 @@ Run these commands to prepare your server, configure firewall rules, install Doc
 apt update && apt upgrade -y
 apt install -y ca-certificates curl gnupg ufw git fail2ban
 
-# 2. Configure UFW Firewall
+# 2. Add 4GB Swap Space (Essential for VPS builds to prevent memory exhaustion and build freezing)
+if [ ! -f /swapfile ]; then
+  fallocate -l 4G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=4096
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+# 3. Configure UFW Firewall
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow 22/tcp
