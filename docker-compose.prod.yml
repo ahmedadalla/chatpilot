@@ -5,14 +5,10 @@ services:
     restart: unless-stopped
     env_file:
       - ${ENV_FILE:-.env.production}
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-chatpilot}
-      POSTGRES_USER: ${POSTGRES_USER:-chatpilot_migrator}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chatpilot_migrator} -d ${POSTGRES_DB:-chatpilot}"]
+      test: ["CMD-SHELL", "pg_isready -U chatpilot_migrator -d chatpilot"]
       interval: 5s
       timeout: 5s
       retries: 5

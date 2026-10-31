@@ -301,6 +301,14 @@ SUPER_ADMIN_PASSWORD=SetAStrongInitialSuperAdminPassword123!
 BOOTSTRAP_OVERRIDE=true
 ```
 
+### 5.4 Create `.env` Symlink (Essential for Docker Compose)
+Docker Compose by default reads `.env` for variable interpolation. Creating a symlink ensures that all `docker compose` commands (like `ps`, `up`, `logs`) automatically load your production variables without needing `--env-file` every time:
+
+```bash
+cd /opt/chatpilot
+ln -sf .env.production .env
+```
+
 ---
 
 ## 6. Database Setup and Migrations
@@ -310,12 +318,14 @@ The database follows a **Two-DSN Least Privilege Model (D-3, D-4)**. The applica
 ### 6.1 Start Database and Cache Backing Services
 ```bash
 cd /opt/chatpilot
+ln -sf .env.production .env
 docker compose -f docker-compose.prod.yml up -d postgres redis
 ```
 Verify both containers report `healthy`:
 ```bash
 docker compose -f docker-compose.prod.yml ps
 ```
+*(If postgres was previously started with an empty password and is in a restart loop, run `docker compose -f docker-compose.prod.yml down -v` to reset the volume and start clean).*
 
 ### 6.2 Initialize Security Roles & Grants
 Execute `000_init_roles.sql` into the running PostgreSQL container as `chatpilot_migrator`. Substitute `YOUR_APP_PASSWORD_HERE` with the actual value from `.env.production`:
