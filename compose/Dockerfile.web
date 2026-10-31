@@ -12,6 +12,7 @@ COPY apps/web/ ./apps/web/
 ENV PRISMA_GENERATE_SKIP_AUTOINSTALL=1
 RUN pnpm install --frozen-lockfile
 RUN pnpm exec prisma generate --schema=prisma/schema.prisma
+RUN pnpm --filter "./packages/*" build
 RUN pnpm --filter @chatpilot/web build
 
 FROM node:20-alpine AS runner
