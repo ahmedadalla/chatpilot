@@ -1,0 +1,118 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: chatpilot-postgres
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env.production}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-chatpilot}
+      POSTGRES_USER: ${POSTGRES_USER:-chatpilot_migrator}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-chatpilot_migrator} -d ${POSTGRES_DB:-chatpilot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chatpilot-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatpilot-redis
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env.production}
+    command: ["sh", "-c", "redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - chatpilot-net
+
+  api:
+    build:
+      context: .
+      dockerfile: compose/Dockerfile.api
+    container_name: chatpilot-api
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env.production}
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - chatpilot-net
+
+  worker:
+    build:
+      context: .
+      dockerfile: compose/Dockerfile.worker
+    container_name: chatpilot-worker
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env.production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chatpilot-net
+
+  whatsapp-worker:
+    build:
+      context: .
+      dockerfile: compose/Dockerfile.whatsapp-worker
+    container_name: chatpilot-whatsapp-worker
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env.production}
+    ports:
+      - "127.0.0.1:3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chatpilot-net
+
+  web:
+    build:
+      context: .
+      dockerfile: compose/Dockerfile.web
+    container_name: chatpilot-web
+    restart: unless-stopped
+    env_file:
+      - ${ENV_FILE:-.env.production}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - chatpilot-net
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+
+networks:
+  chatpilot-net:
+    driver: bridge

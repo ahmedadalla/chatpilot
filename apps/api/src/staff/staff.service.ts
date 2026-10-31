@@ -28,10 +28,10 @@ export class StaffService {
     return this.invitationService.createInvitation({
       callerRole: callerCtx.role,
       callerCompanyId: callerCtx.companyId,
-      callerBranchId: callerCtx.branchId,
+      callerBranchId: callerCtx.branchId ?? null,
       email: dto.email,
       role: dto.role,
-      branchId: dto.branchId,
+      branchId: dto.branchId ?? null,
     });
   }
 

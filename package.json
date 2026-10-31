@@ -9,18 +9,26 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test:unit": "turbo run test:unit",
-    "test:integration": "node --test \"tests/integration/**/*.spec.ts\"",
-    "test:e2e": "node --test \"tests/e2e/**/*.spec.ts\"",
+    "test:integration": "tsx --test \"tests/integration/**/*.spec.ts\"",
+    "test:e2e": "tsx --test \"tests/e2e/**/*.spec.ts\"",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.3.0",
     "@commitlint/config-conventional": "^19.2.2",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.10",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
     "@typescript-eslint/parser": "^7.16.0",
     "eslint": "^8.57.0",
+    "jsonwebtoken": "^9.0.2",
     "prettier": "^3.3.3",
+    "prisma": "^5.22.0",
+    "tsx": "^4.23.15",
     "turbo": "^2.0.9",
     "typescript": "^5.5.3"
   }

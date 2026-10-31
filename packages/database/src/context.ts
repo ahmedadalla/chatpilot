@@ -1,4 +1,4 @@
-import { Role, Capability, ROLE_CAPABILITIES } from '@chatpilot/contracts';
+import { Role, Capability } from '@chatpilot/contracts';
 
 export type TenantScopeType = 'company' | 'branch' | 'service' | 'preauth' | 'user' | 'platform';
 

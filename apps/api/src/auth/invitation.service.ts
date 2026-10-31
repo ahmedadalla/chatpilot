@@ -46,7 +46,7 @@ export class InvitationService {
     // Grantor allowlist enforcement:
     if (callerRole === Role.COMPANY_ADMIN) {
       // Company Admin may invite company-level or branch-level users for their own company
-      const allowedRoles = new Set([
+      const allowedRoles = new Set<Role>([
         Role.COMPANY_ADMIN,
         Role.BRANCH_MANAGER,
         Role.KITCHEN,
@@ -58,7 +58,7 @@ export class InvitationService {
       }
     } else if (callerRole === Role.BRANCH_MANAGER) {
       // Branch Manager may invite only operational branch staff to their own branch
-      const allowedRoles = new Set([Role.KITCHEN, Role.DELIVERY, Role.STAFF]);
+      const allowedRoles = new Set<Role>([Role.KITCHEN, Role.DELIVERY, Role.STAFF]);
       if (!allowedRoles.has(role)) {
         throw new ForbiddenException(`Branch Manager cannot grant role ${role}`);
       }

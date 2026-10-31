@@ -33,7 +33,7 @@ async function bootstrap() {
   }
 
   // 3. Multi-device Session Engine Manager initialized (D-21)
-  const sessionManager = new BaileysSessionManager();
+  const _sessionManager = new BaileysSessionManager();
 
   logger.info(
     {

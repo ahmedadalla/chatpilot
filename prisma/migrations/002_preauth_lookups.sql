@@ -21,15 +21,15 @@ BEGIN
   SELECT
     u.id,
     u.email::text,
-    u.password_hash::text,
+    u."passwordHash"::text,
     u.role::text,
-    u.company_id,
-    u.branch_id,
-    u.is_active,
-    u.permissions_version
+    u."companyId",
+    u."branchId",
+    u."isActive",
+    u."permissionsVersion"
   FROM users u
   WHERE lower(u.email) = lower(p_email)
-    AND u.is_active = true
+    AND u."isActive" = true
   LIMIT 1;
 END;
 $$;
@@ -52,16 +52,16 @@ BEGIN
   RETURN QUERY
   SELECT
     i.id,
-    i.company_id,
-    i.branch_id,
+    i."companyId",
+    i."branchId",
     i.email::text,
     i.role::text,
     i.status::text,
-    i.expires_at
+    i."expiresAt"
   FROM invitations i
-  WHERE i.token_hash = p_token_hash
+  WHERE i."tokenHash" = p_token_hash
     AND i.status = 'PENDING'
-    AND i.expires_at > now()
+    AND i."expiresAt" > now()
   LIMIT 1;
 END;
 $$;
@@ -80,11 +80,11 @@ BEGIN
   RETURN QUERY
   SELECT
     prt.id,
-    prt.user_id,
-    prt.expires_at
+    prt."userId",
+    prt."expiresAt"
   FROM password_reset_tokens prt
-  WHERE prt.token_hash = p_token_hash
-    AND prt.expires_at > now()
+  WHERE prt."tokenHash" = p_token_hash
+    AND prt."expiresAt" > now()
   LIMIT 1;
 END;
 $$;
@@ -106,14 +106,14 @@ BEGIN
   RETURN QUERY
   SELECT
     wc.id,
-    wc.company_id,
-    wc.branch_id,
+    wc."companyId",
+    wc."branchId",
     wc.provider::text,
     wc.status::text,
-    wc.webhook_secret_ref::text
+    wc."webhookSecretRef"::text
   FROM whatsapp_connections wc
   WHERE wc.provider::text = p_provider
-    AND wc.business_connection_id = p_business_id
+    AND wc."businessConnectionId" = p_business_id
   LIMIT 1;
 END;
 $$;

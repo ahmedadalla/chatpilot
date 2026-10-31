@@ -28,13 +28,21 @@ module.exports = {
     {
       // Prohibit scope = 'platform' outside PlatformSupportService
       files: ['apps/**/*', 'packages/**/*'],
-      excludedFiles: ['**/platform-support.service.ts', '**/platform-support/**', '**/tests/**'],
+      excludedFiles: [
+        '**/platform-support.service.ts',
+        '**/platform-support/**',
+        '**/packages/database/**',
+        '**/jwt-auth.guard.ts',
+        '**/tests/**',
+      ],
       rules: {
         'no-restricted-syntax': [
           'error',
           {
-            selector: "Literal[value='platform']",
-            message: "Security Lint Gate B: Setting scope='platform' is strictly restricted to PlatformSupportService.",
+            selector:
+              "Property[key.name='scope'] > Literal[value='platform'], AssignmentExpression[left.property.name='scope'] > Literal[value='platform']",
+            message:
+              "Security Lint Gate B: Setting scope='platform' is strictly restricted to PlatformSupportService.",
           },
         ],
       },

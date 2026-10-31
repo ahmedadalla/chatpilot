@@ -426,7 +426,7 @@ export class OrderWorkflowService {
       }
 
       // Terminal state check: No transition may originate from terminal states
-      if (TERMINAL_ORDER_STATUSES.has(currentOrder.status)) {
+      if (TERMINAL_ORDER_STATUSES.has(currentOrder.status as OrderStatus)) {
         throw new UnprocessableEntityException(
           `Cannot transition order: Order is in terminal state "${currentOrder.status}"`,
         );
@@ -508,7 +508,7 @@ export class OrderWorkflowService {
         orderId: updatedOrder.id,
         orderNumber: updatedOrder.orderNumber,
         branchId: updatedOrder.branchId,
-        fromStatus: currentOrder.status,
+        fromStatus: currentOrder.status as OrderStatus,
         toStatus,
         occurredAt: new Date(),
       });

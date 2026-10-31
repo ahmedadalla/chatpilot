@@ -1,17 +1,22 @@
 FROM node:20-alpine AS base
 WORKDIR /app
+RUN apk add --no-cache git python3 make g++ libc6-compat openssl
 RUN npm install -g pnpm@9.7.0
 
 FROM base AS builder
 WORKDIR /app
-COPY pnpm-workspace.yaml package.json turbo.json tsconfig.base.json .eslintrc.js .prettierrc ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json tsconfig.base.json .eslintrc.js .prettierrc ./
+COPY prisma/ ./prisma/
 COPY packages/ ./packages/
 COPY apps/whatsapp-worker/ ./apps/whatsapp-worker/
-RUN pnpm install --frozen-lockfile || pnpm install
+ENV PRISMA_GENERATE_SKIP_AUTOINSTALL=1
+RUN pnpm install --frozen-lockfile
+RUN pnpm exec prisma generate --schema=prisma/schema.prisma
 RUN pnpm --filter @chatpilot/whatsapp-worker build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
+RUN apk add --no-cache openssl libc6-compat
 ENV NODE_ENV=production
 COPY --from=builder /app /app
 EXPOSE 3002
