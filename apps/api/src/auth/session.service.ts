@@ -107,113 +107,112 @@ export class SessionService {
       : { scope: 'user' as const, userId: tokenOwner.user_id };
 
     return this.tenantScopeService.runInScope(refreshScope, async (tx) => {
-        // 1. Locate the refresh token record inside the owner scope
-        const tokenRecord = await tx.refreshToken.findUnique({
-          where: { id: tokenOwner.id },
-          include: {
-            session: true,
-            user: {
-              include: {
-                company: true,
-                branch: true,
-              },
+      // 1. Locate the refresh token record inside the owner scope
+      const tokenRecord = await tx.refreshToken.findUnique({
+        where: { id: tokenOwner.id },
+        include: {
+          session: true,
+          user: {
+            include: {
+              company: true,
+              branch: true,
             },
           },
-        });
+        },
+      });
 
-        if (!tokenRecord || tokenRecord.tokenHash !== incomingHash) {
-          throw new UnauthorizedException('Invalid refresh token');
-        }
+      if (!tokenRecord || tokenRecord.tokenHash !== incomingHash) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
 
-        // 2. Reuse Detection / Theft Signal:
-        // If the token was already revoked, someone is replaying an old rotated token!
-        if (tokenRecord.revokedAt !== null || tokenRecord.session.revokedAt !== null) {
-          // Revoke the entire session immediately and write an audit security event
-          await tx.authSession.update({
-            where: { id: tokenRecord.sessionId },
-            data: { revokedAt: new Date() },
-          });
-
-          await tx.refreshToken.updateMany({
-            where: { sessionId: tokenRecord.sessionId, revokedAt: null },
-            data: { revokedAt: new Date() },
-          });
-
-          await tx.auditLog.create({
-            data: {
-              companyId: tokenRecord.user.companyId,
-              actorUserId: tokenRecord.userId,
-              action: 'REFRESH_TOKEN_REUSE_DETECTED',
-              entityType: 'AuthSession',
-              entityId: tokenRecord.sessionId,
-              details: {
-                reason: 'Replay of an already rotated refresh token',
-                tokenId: tokenRecord.id,
-              },
-            },
-          });
-
-          throw new UnauthorizedException(
-            'Security alert: Refresh token reuse detected; session terminated',
-          );
-        }
-
-        // 3. Expiration Check
-        if (tokenRecord.expiresAt < new Date()) {
-          throw new UnauthorizedException('Refresh token expired');
-        }
-
-        // 4. Freshness Re-Verification: user, company, and branch active states
-        const user = tokenRecord.user;
-
-        if (!user.isActive || (user.deactivatedAt && user.deactivatedAt <= new Date())) {
-          throw new UnauthorizedException('User account is deactivated');
-        }
-
-        if (user.role !== Role.SUPER_ADMIN && user.companyId) {
-          if (!user.company || user.company.status !== CompanyStatus.ACTIVE) {
-            throw new UnauthorizedException('Company account is suspended or not active');
-          }
-
-          if (user.branchId && (!user.branch || !user.branch.isActive)) {
-            throw new UnauthorizedException('Assigned branch is deactivated');
-          }
-        }
-
-        // 5. Atomic Rotation: Mark current token revoked, generate and persist new token
-        await tx.refreshToken.update({
-          where: { id: tokenRecord.id },
+      // 2. Reuse Detection / Theft Signal:
+      // If the token was already revoked, someone is replaying an old rotated token!
+      if (tokenRecord.revokedAt !== null || tokenRecord.session.revokedAt !== null) {
+        // Revoke the entire session immediately and write an audit security event
+        await tx.authSession.update({
+          where: { id: tokenRecord.sessionId },
           data: { revokedAt: new Date() },
         });
 
-        const newRawRefreshToken = this.generateRawRefreshToken();
-        const newTokenHash = this.hashToken(newRawRefreshToken);
-        const newRefreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await tx.refreshToken.updateMany({
+          where: { sessionId: tokenRecord.sessionId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
 
-        await tx.refreshToken.create({
+        await tx.auditLog.create({
           data: {
-            userId: user.id,
-            sessionId: tokenRecord.sessionId,
-            tokenHash: newTokenHash,
-            expiresAt: newRefreshExpiresAt,
+            companyId: tokenRecord.user.companyId,
+            actorUserId: tokenRecord.userId,
+            action: 'REFRESH_TOKEN_REUSE_DETECTED',
+            entityType: 'AuthSession',
+            entityId: tokenRecord.sessionId,
+            details: {
+              reason: 'Replay of an already rotated refresh token',
+              tokenId: tokenRecord.id,
+            },
           },
         });
 
-        // Issue new access JWT
-        const newAccessToken = this.tokenService.issueAccessToken(
-          user.id,
-          tokenRecord.sessionId,
-          user.permissionsVersion,
+        throw new UnauthorizedException(
+          'Security alert: Refresh token reuse detected; session terminated',
         );
+      }
 
-        return {
-          accessToken: newAccessToken,
-          refreshToken: newRawRefreshToken,
+      // 3. Expiration Check
+      if (tokenRecord.expiresAt < new Date()) {
+        throw new UnauthorizedException('Refresh token expired');
+      }
+
+      // 4. Freshness Re-Verification: user, company, and branch active states
+      const user = tokenRecord.user;
+
+      if (!user.isActive || (user.deactivatedAt && user.deactivatedAt <= new Date())) {
+        throw new UnauthorizedException('User account is deactivated');
+      }
+
+      if (user.role !== Role.SUPER_ADMIN && user.companyId) {
+        if (!user.company || user.company.status !== CompanyStatus.ACTIVE) {
+          throw new UnauthorizedException('Company account is suspended or not active');
+        }
+
+        if (user.branchId && (!user.branch || !user.branch.isActive)) {
+          throw new UnauthorizedException('Assigned branch is deactivated');
+        }
+      }
+
+      // 5. Atomic Rotation: Mark current token revoked, generate and persist new token
+      await tx.refreshToken.update({
+        where: { id: tokenRecord.id },
+        data: { revokedAt: new Date() },
+      });
+
+      const newRawRefreshToken = this.generateRawRefreshToken();
+      const newTokenHash = this.hashToken(newRawRefreshToken);
+      const newRefreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      await tx.refreshToken.create({
+        data: {
+          userId: user.id,
           sessionId: tokenRecord.sessionId,
-          expiresIn: 900,
-        };
-      },
-    );
+          tokenHash: newTokenHash,
+          expiresAt: newRefreshExpiresAt,
+        },
+      });
+
+      // Issue new access JWT
+      const newAccessToken = this.tokenService.issueAccessToken(
+        user.id,
+        tokenRecord.sessionId,
+        user.permissionsVersion,
+      );
+
+      return {
+        accessToken: newAccessToken,
+        refreshToken: newRawRefreshToken,
+        sessionId: tokenRecord.sessionId,
+        expiresIn: 900,
+      };
+    });
   }
 
   /**
