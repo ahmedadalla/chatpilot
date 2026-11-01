@@ -7,6 +7,7 @@ import { AuthUser, getStoredUser, logout } from '../lib/auth';
 
 const navItems = [
   { href: '/dashboard', label: 'نظرة عامة', roles: ['*'] },
+  { href: '/orders', label: 'الطلبات', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'BRANCH_MANAGER', 'KITCHEN', 'DELIVERY', 'STAFF'] },
   { href: '/admin/companies', label: 'الشركات والمنصة', roles: ['SUPER_ADMIN'] },
   { href: '/admin/analytics', label: 'تحليلات المنصة', roles: ['SUPER_ADMIN'] },
   { href: '/company/branches', label: 'الفروع', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'] },
