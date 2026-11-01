@@ -1,43 +1,48 @@
-import React from 'react';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { AppShell } from '../../../../components/app-shell';
+import { ApiError, apiGet } from '../../../../lib/api';
+import { getStoredUser } from '../../../../lib/auth';
+
+type Operational = {
+  totalOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  failedDeliveryOrders: number;
+  activeOrders: number;
+  avgPrepDurationMinutes: number;
+  avgDeliveryDurationMinutes: number;
+};
 
 export default function BranchOperationalAnalyticsPage() {
+  const [metrics, setMetrics] = useState<Operational | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const user = getStoredUser();
+    if (!user?.branchId) {
+      setError('لا يوجد فرع مرتبط بهذا الحساب.');
+      return;
+    }
+    void apiGet<{ operational: Operational }>(`/api/v1/analytics/branch/${user.branchId}/operational`)
+      .then((response) => setMetrics(response.operational))
+      .catch((loadError) => setError(loadError instanceof ApiError ? loadError.message : 'تعذر تحميل المؤشرات التشغيلية.'));
+  }, []);
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          المؤشرات التشغيلية للفرع | Branch Operational Analytics
-        </h1>
-        <p className="text-sm text-slate-500">
-          معدلات سرعة التحضير، أوقات التوصيل، وكفاءة المطبخ (مخصصة للتشغيل — خالية من البيانات المالية، D-14)
-        </p>
-      </div>
-
-      {/* Operational Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">الطلبات المكتملة</p>
-          <p className="text-2xl font-bold text-slate-900 mt-2">540 طلب</p>
-          <span className="text-xs text-emerald-600 mt-1 block">95.4% نسبة التسليم</span>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">متوسط زمن التحضير بالمطبخ</p>
-          <p className="text-2xl font-bold text-slate-900 mt-2">16 دقيقة</p>
-          <span className="text-xs text-blue-600 mt-1 block">من القبول حتى جاهز للتسليم</span>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">متوسط زمن التوصيل</p>
-          <p className="text-2xl font-bold text-slate-900 mt-2">22 دقيقة</p>
-          <span className="text-xs text-purple-600 mt-1 block">من الخروج حتى التسليم</span>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-medium text-slate-500">طلبات ملغاة / فشل التوصيل</p>
-          <p className="text-2xl font-bold text-rose-600 mt-2">18 طلب</p>
-          <span className="text-xs text-slate-400 mt-1 block">3.2% معدل الأعطال التشغيلية</span>
-        </div>
-      </div>
-    </div>
+    <AppShell title="المؤشرات التشغيلية للفرع" description="بيانات التشغيل فقط، دون أي مؤشرات مالية.">
+      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>}
+      {!metrics && !error && <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">جارٍ تحميل المؤشرات...</p>}
+      {metrics && <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
+        ['إجمالي الطلبات', metrics.totalOrders],
+        ['الطلبات المسلّمة', metrics.deliveredOrders],
+        ['الطلبات النشطة', metrics.activeOrders],
+        ['الملغاة', metrics.cancelledOrders],
+        ['فشل التوصيل', metrics.failedDeliveryOrders],
+        ['متوسط التحضير', `${metrics.avgPrepDurationMinutes} دقيقة`],
+        ['متوسط التوصيل', `${metrics.avgDeliveryDurationMinutes} دقيقة`],
+      ].map(([label, value]) => <article key={label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-2xl font-black text-slate-950">{value}</p></article>)}</section>}
+    </AppShell>
   );
 }
