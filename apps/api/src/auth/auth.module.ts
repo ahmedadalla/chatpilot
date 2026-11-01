@@ -8,7 +8,7 @@ import { TotpService } from './totp.service';
 import { PasswordResetService } from './password-reset.service';
 import { InvitationService } from './invitation.service';
 import { PermissionVersionService } from './permission-version.service';
-import { PrismaService } from '@chatpilot/database';
+import { PrismaService, TenantScopeService } from '@chatpilot/database';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CapabilitiesGuard } from './guards/capabilities.guard';
 import { ScopeGuard } from './guards/scope.guard';
@@ -25,6 +25,7 @@ import { ScopeGuard } from './guards/scope.guard';
     InvitationService,
     PermissionVersionService,
     PrismaService,
+    TenantScopeService,
     JwtAuthGuard,
     CapabilitiesGuard,
     ScopeGuard,
