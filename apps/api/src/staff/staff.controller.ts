@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Delete,
   Patch,
@@ -21,6 +22,12 @@ import { InviteStaffDto, Role } from '@chatpilot/contracts';
 @UseGuards(JwtAuthGuard, CapabilitiesGuard)
 export class StaffController {
   constructor(private readonly staffService: StaffService) {}
+
+  @Get()
+  @RequireCapabilities('staff:invite')
+  async list(@CurrentUser() user: InteractiveAuthContext) {
+    return this.staffService.list(user);
+  }
 
   @Post('invite')
   @RequireCapabilities('staff:invite')
