@@ -35,6 +35,12 @@ export interface UserAuthContext extends BaseTenantContext {
   userId: string;
 }
 
+export interface TenantQueryContext extends BaseTenantContext {
+  scope: 'company' | 'branch';
+  companyId: string;
+  branchId?: string | null;
+}
+
 export interface PlatformSupportContext extends BaseTenantContext {
   scope: 'platform';
   auditReason: string;
@@ -43,6 +49,7 @@ export interface PlatformSupportContext extends BaseTenantContext {
 
 export type ScopedContext =
   | InteractiveAuthContext
+  | TenantQueryContext
   | ServiceContext
   | PreauthContext
   | UserAuthContext
