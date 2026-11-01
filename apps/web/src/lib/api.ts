@@ -75,5 +75,11 @@ export const apiPatch = <T>(path: string, body: unknown) =>
     body: JSON.stringify(body),
   });
 
+export const apiPut = <T>(path: string, body: unknown) =>
+  apiRequest<T>(path, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+
 export const apiDelete = <T = void>(path: string) =>
   apiRequest<T>(path, { method: 'DELETE' });
