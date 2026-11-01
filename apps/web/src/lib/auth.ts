@@ -2,9 +2,7 @@ import type { LoginDto, LoginResponse, RefreshTokenResponse } from '@chatpilot/c
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === 'production'
-    ? 'https://api.ahmedelnwawy.me'
-    : 'http://localhost:3001');
+  (process.env.NODE_ENV === 'production' ? 'https://api.ahmedelnwawy.me' : 'http://localhost:3001');
 
 const ACCESS_TOKEN_KEY = 'chatpilot.access-token';
 const USER_KEY = 'chatpilot.user';
@@ -24,7 +22,6 @@ export function getStoredUser(): AuthUser | null {
   if (typeof window === 'undefined') return null;
   const rawUser = window.localStorage.getItem(USER_KEY);
   if (!rawUser) return null;
-
   try {
     return JSON.parse(rawUser) as AuthUser;
   } catch {
@@ -39,6 +36,7 @@ export function storeAuth(result: LoginResponse) {
 }
 
 export function clearAuth() {
+  if (typeof window === 'undefined') return;
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
   window.localStorage.removeItem(USER_KEY);
 }
@@ -50,23 +48,16 @@ export async function login(credentials: LoginDto) {
     credentials: 'include',
     body: JSON.stringify(credentials),
   });
-
   const payload = (await response.json().catch(() => null)) as
     | LoginResponse
     | { message?: string | string[] }
     | null;
-
   if (!response.ok) {
-    const errorPayload =
-      payload && typeof payload === 'object' && 'message' in payload
-        ? (payload as { message?: string | string[] })
-        : null;
-    const message = Array.isArray(errorPayload?.message)
-      ? errorPayload.message.join(', ')
-      : errorPayload?.message || 'تعذر تسجيل الدخول. تحقق من البيانات وحاول مرة أخرى.';
-    throw new Error(message);
+    const message = payload && 'message' in payload
+      ? Array.isArray(payload.message) ? payload.message.join(', ') : payload.message
+      : undefined;
+    throw new Error(message || 'تعذر تسجيل الدخول. تحقق من البيانات وحاول مرة أخرى.');
   }
-
   storeAuth(payload as LoginResponse);
   return payload as LoginResponse;
 }
@@ -80,7 +71,6 @@ export async function refreshAccessToken() {
     clearAuth();
     return null;
   }
-
   const payload = (await response.json()) as RefreshTokenResponse;
   window.localStorage.setItem(ACCESS_TOKEN_KEY, payload.accessToken);
   return payload.accessToken;
