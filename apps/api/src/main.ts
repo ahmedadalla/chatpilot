@@ -5,7 +5,9 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import pino from 'pino';
 import { validateEnv } from '@chatpilot/config';
+import { PrismaClient } from '@chatpilot/database';
 import { AppModule } from './app.module';
+import { bootstrapSuperAdmin } from './seed/bootstrap-super-admin';
 
 const logger = pino({
   name: 'chatpilot-api',
@@ -16,6 +18,13 @@ async function bootstrap() {
   // 1. Boot-time environment validation (fail-fast)
   const env = validateEnv();
   logger.info({ port: env.PORT, env: env.NODE_ENV }, 'Environment successfully validated');
+
+  const bootstrapPrisma = new PrismaClient();
+  try {
+    await bootstrapSuperAdmin(bootstrapPrisma);
+  } finally {
+    await bootstrapPrisma.$disconnect();
+  }
 
   // 2. Initialize NestJS Application
   const app = await NestFactory.create(AppModule, {

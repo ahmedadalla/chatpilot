@@ -295,7 +295,7 @@ DEFAULT_CALLING_CODE=+20
 
 # ------------------------------------------------------------------------------
 # Initial Super Admin Bootstrap (Initial Start Only)
-# Remove BOOTSTRAP_OVERRIDE after first successful login
+# Remove BOOTSTRAP_OVERRIDE after the bootstrap logs confirm account creation
 # ------------------------------------------------------------------------------
 SUPER_ADMIN_EMAIL=admin@yourdomain.com
 SUPER_ADMIN_PASSWORD=SetAStrongInitialSuperAdminPassword123!
@@ -549,11 +549,13 @@ curl -I https://app.yourdomain.com
 7. **Securely store the 10 single-use recovery codes.**
 
 ### 9.3 Post-Bootstrap Security Clean-Up
-Once logged in, remove the bootstrap flag to prevent re-initialization on subsequent restarts:
+After the API logs confirm `First Super Admin bootstrapped successfully`, remove the
+bootstrap flag to prevent bootstrap checks on subsequent restarts:
 ```bash
 su - deploy
 cd /opt/chatpilot
 sed -i 's/BOOTSTRAP_OVERRIDE=true/BOOTSTRAP_OVERRIDE=false/' .env.production
+docker compose -f docker-compose.prod.yml up -d --force-recreate api
 ```
 
 ---
