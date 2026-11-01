@@ -10,6 +10,7 @@ const navItems = [
   { href: '/orders', label: 'الطلبات', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'BRANCH_MANAGER', 'KITCHEN', 'DELIVERY', 'STAFF'] },
   { href: '/admin/companies', label: 'الشركات والمنصة', roles: ['SUPER_ADMIN'] },
   { href: '/admin/analytics', label: 'تحليلات المنصة', roles: ['SUPER_ADMIN'] },
+  { href: '/billing', label: 'الاشتراكات والاستخدام', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'] },
   { href: '/company/branches', label: 'الفروع', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'] },
   { href: '/company/settings', label: 'إعدادات الشركة', roles: ['COMPANY_ADMIN'] },
   { href: '/company/staff', label: 'فريق العمل', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'BRANCH_MANAGER'] },
