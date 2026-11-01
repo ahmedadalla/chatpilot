@@ -18,6 +18,8 @@ type BoardItem = {
   notes?: string | null;
 };
 
+type Branch = { id: string; name: string; code: string; isActive: boolean };
+
 const statusLabels: Record<string, string> = {
   PENDING: 'طلبات جديدة',
   ACCEPTED: 'مقبولة',
@@ -34,6 +36,9 @@ function elapsed(createdAt: string) {
 export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
   const user = getStoredUser();
   const [orders, setOrders] = useState<BoardItem[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchesLoading, setBranchesLoading] = useState(!user?.branchId && Boolean(user?.companyId));
+  const [selectedBranchId, setSelectedBranchId] = useState(user?.branchId || '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -42,16 +47,29 @@ export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
     setLoading(true);
     setError('');
     try {
-      const path = kind === 'kitchen' ? '/api/v1/orders/kitchen/board' : '/api/v1/orders/delivery/board';
+      const basePath = kind === 'kitchen' ? '/api/v1/orders/kitchen/board' : '/api/v1/orders/delivery/board';
+      const path = selectedBranchId && !user?.branchId
+        ? `${basePath}?branchId=${encodeURIComponent(selectedBranchId)}`
+        : basePath;
       setOrders(await apiGet<BoardItem[]>(path));
     } catch (loadError) {
       setError(loadError instanceof ApiError ? loadError.message : 'تعذر تحميل الطلبات.');
     } finally {
       setLoading(false);
     }
-  }, [kind]);
+  }, [kind, selectedBranchId, user?.branchId]);
 
   useEffect(() => {
+    if (!user?.branchId && user?.companyId) {
+      void apiGet<Branch[]>('/api/v1/branches')
+        .then((availableBranches) => {
+          const activeBranches = availableBranches.filter((branch) => branch.isActive);
+          setBranches(activeBranches);
+          setSelectedBranchId((current) => current || activeBranches[0]?.id || '');
+        })
+        .catch((loadError) => setError(loadError instanceof ApiError ? loadError.message : 'تعذر تحميل الفروع.'))
+        .finally(() => setBranchesLoading(false));
+    }
     void load();
     const timer = window.setInterval(() => void load(), 30000);
     return () => window.clearInterval(timer);
@@ -102,8 +120,12 @@ export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
     return null;
   }
 
-  if (!user?.branchId) {
-    return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">لا يوجد فرع محدد لهذا الحساب. اختر حساباً مرتبطاً بفرع للوصول إلى لوحة التشغيل.</div>;
+  if (!user?.branchId && branchesLoading) {
+    return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">جارٍ تحميل فروع الشركة...</div>;
+  }
+
+  if (!user?.branchId && branches.length === 0) {
+    return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">لا توجد فروع نشطة متاحة لهذا الحساب.</div>;
   }
 
   return (
@@ -111,7 +133,7 @@ export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-slate-500">الفرع المرتبط بالحساب</p>
-          <p className="font-semibold text-slate-800" dir="ltr">{user.branchId}</p>
+          {user?.branchId ? <p className="font-semibold text-slate-800" dir="ltr">{user.branchId}</p> : <select value={selectedBranchId} onChange={(event) => setSelectedBranchId(event.target.value)} className="mt-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"><option value="">اختر فرعاً</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name} ({branch.code})</option>)}</select>}
         </div>
         <button type="button" onClick={() => void load()} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">تحديث</button>
       </div>
