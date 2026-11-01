@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 export default function HomePage() {
   return (
@@ -21,6 +22,12 @@ export default function HomePage() {
             Arabic RTL / English
           </span>
         </div>
+        <Link
+          href="/login"
+          className="mt-8 inline-flex rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+        >
+          تسجيل الدخول إلى لوحة التحكم
+        </Link>
       </div>
     </main>
   );

@@ -242,6 +242,7 @@ Edit `/opt/chatpilot/.env.production` (`nano .env.production`) and populate ever
 NODE_ENV=production
 PORT=3001
 WEB_PORT=3000
+WEB_ORIGIN=https://app.ahmedelnwawy.me
 WHATSAPP_WORKER_PORT=3002
 
 # ------------------------------------------------------------------------------
@@ -540,11 +541,12 @@ curl -I https://app.yourdomain.com
 
 ### 9.2 First Admin Login & TOTP Setup
 1. Open `https://app.yourdomain.com` in your web browser.
-2. Verify that the interface renders in Arabic with proper RTL alignment.
-3. Click **تسجيل الدخول / Sign In**.
+2. Click **تسجيل الدخول إلى لوحة التحكم** or open `/login`.
+3. Verify that the interface renders in Arabic with proper RTL alignment.
 4. Log in using `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD`.
-5. Complete TOTP MFA registration using Google Authenticator or 1Password.
-6. **Securely store the 10 single-use recovery codes.**
+5. If MFA is enabled, enter the current TOTP code or a single-use recovery code.
+6. Complete TOTP MFA registration using Google Authenticator or 1Password if it has not been configured.
+7. **Securely store the 10 single-use recovery codes.**
 
 ### 9.3 Post-Bootstrap Security Clean-Up
 Once logged in, remove the bootstrap flag to prevent re-initialization on subsequent restarts:
