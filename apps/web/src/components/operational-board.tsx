@@ -43,6 +43,13 @@ export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [reasonDialog, setReasonDialog] = useState<{
+    orderId: string;
+    action: string;
+    reasonCode: string;
+    title: string;
+  } | null>(null);
+  const [reason, setReason] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,7 +134,7 @@ export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
         return (
           <div className="flex gap-2">
             <button disabled={busy} onClick={() => void transition(order.id, 'accept')} className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">قبول</button>
-            <button disabled={busy} onClick={() => { const reason = window.prompt('سبب رفض الطلب؟'); if (reason) void transition(order.id, 'reject-pending', { reason, reasonCode: 'KITCHEN_REJECT' }); }} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600 disabled:opacity-50">رفض</button>
+            <button disabled={busy} onClick={() => { setReason(''); setReasonDialog({ orderId: order.id, action: 'reject-pending', reasonCode: 'KITCHEN_REJECT', title: 'سبب رفض الطلب' }); }} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600 disabled:opacity-50">رفض</button>
           </div>
         );
       }
@@ -138,7 +145,7 @@ export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
       if (order.status === 'OUT_FOR_DELIVERY') return (
         <div className="flex gap-2">
           <button disabled={busy} onClick={() => void transition(order.id, 'mark-delivered')} className="flex-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white disabled:opacity-50">تم التسليم</button>
-          <button disabled={busy} onClick={() => { const reason = window.prompt('سبب فشل التوصيل؟'); if (reason) void transition(order.id, 'report-failure', { reason, reasonCode: 'OTHER' }); }} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600 disabled:opacity-50">فشل</button>
+          <button disabled={busy} onClick={() => { setReason(''); setReasonDialog({ orderId: order.id, action: 'report-failure', reasonCode: 'OTHER', title: 'سبب فشل التوصيل' }); }} className="rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600 disabled:opacity-50">فشل</button>
         </div>
       );
     }
@@ -187,6 +194,31 @@ export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
               </div>
             </section>
           ))}
+        </div>
+      )}
+      {reasonDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setReasonDialog(null); }}>
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reason-dialog-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const trimmedReason = reason.trim();
+              if (!trimmedReason) return;
+              void transition(reasonDialog.orderId, reasonDialog.action, { reason: trimmedReason, reasonCode: reasonDialog.reasonCode });
+              setReasonDialog(null);
+            }}
+          >
+            <h2 id="reason-dialog-title" className="text-lg font-bold text-slate-900">{reasonDialog.title}</h2>
+            <label htmlFor="transition-reason" className="mt-4 block text-sm font-semibold text-slate-700">التفاصيل</label>
+            <textarea id="transition-reason" autoFocus value={reason} onChange={(event) => setReason(event.target.value)} rows={4} required className="mt-2 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+            <div className="mt-5 flex justify-end gap-3">
+              <button type="button" onClick={() => setReasonDialog(null)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">إلغاء</button>
+              <button type="submit" className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50" disabled={!reason.trim()}>تأكيد</button>
+            </div>
+          </form>
         </div>
       )}
     </div>
