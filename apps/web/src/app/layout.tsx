@@ -8,11 +8,7 @@ export const metadata: Metadata = {
   description: 'Enterprise Multi-Tenant Conversational Commerce Engine',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ar" dir="rtl">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">

@@ -1,17 +1,9 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { PrismaService, InteractiveAuthContext } from '@chatpilot/database';
 import { AvailabilityResolutionService } from '../../menu/availability-resolution.service';
 import { PendingOrderService } from './pending-order.service';
 import { OrderWorkflowService } from '../../order/order-workflow.service';
-import {
-  PendingOrderSummaryDto,
-  PendingCartLineDto,
-  OrderResponseDto,
-} from '@chatpilot/contracts';
+import { PendingOrderSummaryDto, PendingCartLineDto, OrderResponseDto } from '@chatpilot/contracts';
 
 @Injectable()
 export class AiToolsService {

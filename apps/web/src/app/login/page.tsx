@@ -113,7 +113,10 @@ export default function LoginPage() {
             </div>
 
             {error ? (
-              <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div
+                role="alert"
+                className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              >
                 {error}
               </div>
             ) : null}
@@ -125,7 +128,10 @@ export default function LoginPage() {
             >
               {isSubmitting ? 'جارٍ تسجيل الدخول...' : 'دخول إلى لوحة التحكم'}
             </button>
-            <a href="/reset-password" className="block text-center text-sm font-semibold text-blue-600 hover:underline">
+            <a
+              href="/reset-password"
+              className="block text-center text-sm font-semibold text-blue-600 hover:underline"
+            >
               نسيت كلمة المرور؟
             </a>
           </form>

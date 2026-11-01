@@ -91,7 +91,10 @@ export class SubscriptionCheckWorker {
       }
     }
 
-    logger.info({ suspendedCount: suspendedCompanies.length }, 'Subscription compliance check cycle complete');
+    logger.info(
+      { suspendedCount: suspendedCompanies.length },
+      'Subscription compliance check cycle complete',
+    );
     return { suspendedCompanies };
   }
 }

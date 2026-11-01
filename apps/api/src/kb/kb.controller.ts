@@ -18,10 +18,7 @@ import { ScopeGuard } from '../auth/guards/scope.guard';
 import { RequireCapabilities } from '../auth/decorators/require-caps.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { InteractiveAuthContext } from '@chatpilot/database';
-import {
-  CreateKbDocumentDto,
-  SearchKbDto,
-} from '@chatpilot/contracts';
+import { CreateKbDocumentDto, SearchKbDto } from '@chatpilot/contracts';
 
 @Controller('kb')
 @UseGuards(JwtAuthGuard, CapabilitiesGuard, ScopeGuard)
@@ -51,10 +48,7 @@ export class KbController {
 
   @Get('documents/:id')
   @RequireCapabilities('kb:write/read')
-  async getDocument(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') documentId: string,
-  ) {
+  async getDocument(@CurrentUser() user: InteractiveAuthContext, @Param('id') documentId: string) {
     return this.kbDocumentService.getDocument(user, documentId);
   }
 
@@ -81,15 +75,7 @@ export class KbController {
   @Post('search')
   @HttpCode(HttpStatus.OK)
   @RequireCapabilities('kb:write/read')
-  async search(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Body() dto: SearchKbDto,
-  ) {
-    return this.kbRetrievalService.search(
-      user,
-      dto.query,
-      dto.branchId,
-      dto.limit,
-    );
+  async search(@CurrentUser() user: InteractiveAuthContext, @Body() dto: SearchKbDto) {
+    return this.kbRetrievalService.search(user, dto.query, dto.branchId, dto.limit);
   }
 }

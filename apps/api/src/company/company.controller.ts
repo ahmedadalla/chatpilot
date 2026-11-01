@@ -29,10 +29,7 @@ export class CompanyController {
 
   @Post()
   @RequireCapabilities('company:create')
-  async createCompany(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Body() dto: CreateCompanyDto,
-  ) {
+  async createCompany(@CurrentUser() user: InteractiveAuthContext, @Body() dto: CreateCompanyDto) {
     return this.companyService.createCompany(dto, user.userId);
   }
 
@@ -59,10 +56,7 @@ export class CompanyController {
 
   @Get(':id')
   @RequireCapabilities('company:read')
-  async getCompany(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') companyId: string,
-  ) {
+  async getCompany(@CurrentUser() user: InteractiveAuthContext, @Param('id') companyId: string) {
     return this.companyService.getCompany(user, companyId);
   }
 

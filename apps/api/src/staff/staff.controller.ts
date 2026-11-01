@@ -31,20 +31,14 @@ export class StaffController {
 
   @Post('invite')
   @RequireCapabilities('staff:invite')
-  async invite(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Body() dto: InviteStaffDto,
-  ) {
+  async invite(@CurrentUser() user: InteractiveAuthContext, @Body() dto: InviteStaffDto) {
     return this.staffService.invite(user, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequireCapabilities('staff:deactivate')
-  async deactivate(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') targetUserId: string,
-  ) {
+  async deactivate(@CurrentUser() user: InteractiveAuthContext, @Param('id') targetUserId: string) {
     await this.staffService.deactivate(user, targetUserId);
   }
 

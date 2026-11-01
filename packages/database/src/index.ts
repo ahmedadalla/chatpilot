@@ -14,7 +14,4 @@ export {
   InvitationStatus,
   SubscriptionStatus,
 } from '@prisma/client';
-export {
-  OrderCancellationReason,
-  DeliveryFailureReason,
-} from '@chatpilot/contracts';
+export { OrderCancellationReason, DeliveryFailureReason } from '@chatpilot/contracts';

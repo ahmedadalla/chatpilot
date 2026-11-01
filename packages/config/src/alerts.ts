@@ -25,7 +25,8 @@ export const PROMETHEUS_ALERT_RULES: AlertRule[] = [
     forDuration: '2m',
     severity: 'critical',
     description: 'BullMQ queue depth critical (> 500 jobs backlog).',
-    actionRequired: 'Immediate worker scaling required; check Redis latency and external provider timeouts.',
+    actionRequired:
+      'Immediate worker scaling required; check Redis latency and external provider timeouts.',
   },
   {
     alert: 'SlowWebhookIngress',

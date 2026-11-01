@@ -69,7 +69,10 @@ export class OrderTimeoutPurgeWorker {
 
         if (updated) {
           totalPurged++;
-          logger.info({ orderId: order.id, branchId: branch.id }, 'Order auto-cancelled due to timeout');
+          logger.info(
+            { orderId: order.id, branchId: branch.id },
+            'Order auto-cancelled due to timeout',
+          );
         }
       }
     }

@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { MetaCloudApiAdapter } from './meta-cloud-api.adapter';
-import {
-  PairingHandleResponse,
-  WhatsAppConnectionStatus,
-} from '@chatpilot/contracts';
+import { PairingHandleResponse, WhatsAppConnectionStatus } from '@chatpilot/contracts';
 
 @Injectable()
 export class WhatsAppCoexistenceAdapter extends MetaCloudApiAdapter {

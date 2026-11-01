@@ -353,16 +353,14 @@ export class OrderWorkflowService {
   /**
    * Non-terminal → CANCELLED (Allowed: COMPANY_ADMIN, BRANCH_MANAGER; Terminal state)
    */
-  async adminCancel(
-    callerCtx: InteractiveAuthContext,
-    orderId: string,
-    dto: CancelOrderDto,
-  ) {
+  async adminCancel(callerCtx: InteractiveAuthContext, orderId: string, dto: CancelOrderDto) {
     if (callerCtx.role !== Role.COMPANY_ADMIN && callerCtx.role !== Role.BRANCH_MANAGER) {
       throw new ForbiddenException('Only Company Admin or Branch Manager can cancel orders');
     }
     if (!dto.reasonCode || !dto.reasonText) {
-      throw new UnprocessableEntityException('Reason code and explanation text are required for cancellation');
+      throw new UnprocessableEntityException(
+        'Reason code and explanation text are required for cancellation',
+      );
     }
 
     return this.executeTransition(
@@ -461,7 +459,11 @@ export class OrderWorkflowService {
       }
 
       // 4. Record status history append-only
-      const reason = reasonCode ? (reasonText ? `${reasonCode}: ${reasonText}` : reasonCode) : reasonText;
+      const reason = reasonCode
+        ? reasonText
+          ? `${reasonCode}: ${reasonText}`
+          : reasonCode
+        : reasonText;
       await tx.orderStatusHistory.create({
         data: {
           orderId,

@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AiProvider } from './ai-provider.interface';
-import {
-  AiCompletionRequest,
-  AiCompletionResponse,
-} from '@chatpilot/contracts';
+import { AiCompletionRequest, AiCompletionResponse } from '@chatpilot/contracts';
 
 @Injectable()
 export class GeminiAdapter implements AiProvider {

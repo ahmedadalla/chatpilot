@@ -27,7 +27,11 @@ test('OrderWorkflow 1: Legal transitions pass; illegal transitions return 403 or
   ];
 
   for (const t of legalTransitions) {
-    assert.strictEqual(TERMINAL_ORDER_STATUSES.has(t.from), false, `${t.from} must not be terminal`);
+    assert.strictEqual(
+      TERMINAL_ORDER_STATUSES.has(t.from),
+      false,
+      `${t.from} must not be terminal`,
+    );
   }
 
   // Illegal transition: Any transition originating from terminal states DELIVERED, CANCELLED, FAILED_DELIVERY
@@ -39,7 +43,11 @@ test('OrderWorkflow 1: Legal transitions pass; illegal transitions return 403 or
 
   for (const t of illegalTerminalOrigin) {
     const isIllegal = TERMINAL_ORDER_STATUSES.has(t.from);
-    assert.strictEqual(isIllegal, true, `Transition originating from ${t.from} must be rejected with 422`);
+    assert.strictEqual(
+      isIllegal,
+      true,
+      `Transition originating from ${t.from} must be rejected with 422`,
+    );
   }
 });
 
@@ -84,7 +92,11 @@ test('OrderWorkflow 3: Same-actor replay via OrderTransitionToken returns stored
   const cached = transitionTokens.get(tokenKey);
   assert.ok(cached, 'Cached result found for same actor');
   assert.strictEqual(cached.status, OrderStatus.ACCEPTED);
-  assert.strictEqual(cached.id, 'order-123', 'Replayed request returns 200 with stored result without duplicate notifications');
+  assert.strictEqual(
+    cached.id,
+    'order-123',
+    'Replayed request returns 200 with stored result without duplicate notifications',
+  );
 });
 
 test('OrderWorkflow 4: Competing actor transition returns 409 Conflict', () => {
@@ -95,7 +107,11 @@ test('OrderWorkflow 4: Competing actor transition returns 409 Conflict', () => {
   const matchedRows = currentOrderStatus === targetFromStatus ? 1 : 0;
   const statusCode = matchedRows === 0 ? 409 : 200;
 
-  assert.strictEqual(statusCode, 409, 'Competing actor transition on changed status returns 409 Conflict');
+  assert.strictEqual(
+    statusCode,
+    409,
+    'Competing actor transition on changed status returns 409 Conflict',
+  );
 });
 
 test('OrderWorkflow 5: Order numbering under 50 concurrent creates yields unique sequential numbers', () => {
@@ -111,7 +127,11 @@ test('OrderWorkflow 5: Order numbering under 50 concurrent creates yields unique
     allocatedNumbers.add(orderNumber);
   }
 
-  assert.strictEqual(allocatedNumbers.size, 50, 'All 50 concurrent orders received unique sequential order numbers');
+  assert.strictEqual(
+    allocatedNumbers.size,
+    50,
+    'All 50 concurrent orders received unique sequential order numbers',
+  );
 });
 
 test('OrderWorkflow 6: Idempotency key collision returns existing order with 200 OK (never 500)', () => {
@@ -160,16 +180,18 @@ test('OrderWorkflow 7: Timeout purge: 2 concurrent sweeper invocations cancel st
 });
 
 test('OrderWorkflow 8: CANCELLED order order_created UsageEvent is NOT credited back (D-15)', () => {
-  const usageEvents = [
-    { id: 'ue-1', metric: 'order_created', amount: 1 },
-  ];
+  const usageEvents = [{ id: 'ue-1', metric: 'order_created', amount: 1 }];
 
   // Order is cancelled later
   const orderCancelled = true;
   assert.strictEqual(orderCancelled, true);
 
   // D-15 Invariant: No automatic negative/credit usage event is generated
-  assert.strictEqual(usageEvents.length, 1, 'UsageEvent count remains unchanged after order cancellation');
+  assert.strictEqual(
+    usageEvents.length,
+    1,
+    'UsageEvent count remains unchanged after order cancellation',
+  );
 });
 
 test('OrderWorkflow 9: DELIVERY role calling orders:list sees only READY and OUT statuses; calling reject returns 403', () => {
@@ -177,7 +199,11 @@ test('OrderWorkflow 9: DELIVERY role calling orders:list sees only READY and OUT
   assert.ok(deliveryCaps);
 
   // Delivery role CANNOT reject or cancel orders
-  assert.strictEqual(deliveryCaps.has('orders:transition:cancel'), false, 'Delivery role lacks orders:transition:cancel');
+  assert.strictEqual(
+    deliveryCaps.has('orders:transition:cancel'),
+    false,
+    'Delivery role lacks orders:transition:cancel',
+  );
 
   // Allowed statuses filter for Delivery
   const allOrders = [
@@ -194,7 +220,11 @@ test('OrderWorkflow 9: DELIVERY role calling orders:list sees only READY and OUT
   ]);
 
   const deliveryVisibleOrders = allOrders.filter((o) => allowedDeliveryStatuses.has(o.status));
-  assert.strictEqual(deliveryVisibleOrders.length, 2, 'Delivery role only sees READY_FOR_DELIVERY and OUT_FOR_DELIVERY');
+  assert.strictEqual(
+    deliveryVisibleOrders.length,
+    2,
+    'Delivery role only sees READY_FOR_DELIVERY and OUT_FOR_DELIVERY',
+  );
 });
 
 test('OrderWorkflow 10: BRANCH_MANAGER cancel with no reason code returns 422', () => {
@@ -215,6 +245,14 @@ test('OrderWorkflow 11: STAFF role attempting start_preparation or mark_ready re
 
   // Staff can accept and cancel PENDING, but CANNOT start prep or mark ready (kitchen only)
   assert.strictEqual(staffCaps.has('orders:transition:accept'), true);
-  assert.strictEqual(staffCaps.has('orders:transition:start-prep'), false, 'Staff lacks orders:transition:start-prep');
-  assert.strictEqual(staffCaps.has('orders:transition:ready'), false, 'Staff lacks orders:transition:ready');
+  assert.strictEqual(
+    staffCaps.has('orders:transition:start-prep'),
+    false,
+    'Staff lacks orders:transition:start-prep',
+  );
+  assert.strictEqual(
+    staffCaps.has('orders:transition:ready'),
+    false,
+    'Staff lacks orders:transition:ready',
+  );
 });

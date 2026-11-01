@@ -17,14 +17,14 @@ Row-Level Security** strategy and how it is wired with **Prisma**.
 
 ## 1. Roles and their authorized scope
 
-| Role | Scope | Company | Branch | Core mandate |
-|---|---|---|---|---|
-| `SUPER_ADMIN` | PLATFORM | none | none | Operate the SaaS: create/suspend companies, plans, platform config, platform analytics, audited cross-company reads. **Not** a day-to-day restaurant operator. |
-| `COMPANY_ADMIN` | COMPANY | exactly one | all branches of that company | Run the whole business: menus, branches, orders (read/direct), staff, WhatsApp/AI config, company analytics. |
-| `BRANCH_MANAGER` | BRANCH | own company | one assigned branch | Run that branch: order board, kitchen & delivery ops (if permitted), branch staff, branch settings & analytics. |
-| `KITCHEN` | BRANCH | own company | one assigned branch | Kitchen board: accept pending, start prep, and mark ready branch orders. |
-| `DELIVERY` | BRANCH | own company | one assigned branch | Delivery board: start/complete branch deliveries, report delivery failure from OUT_FOR_DELIVERY. No pending-order rejection. |
-| `STAFF` | BRANCH | own company | one assigned branch | General branch operator: accept or reject/cancel pending orders only; no preparation/ready transitions; no settings/staff/finance. |
+| Role             | Scope    | Company     | Branch                       | Core mandate                                                                                                                                                   |
+| ---------------- | -------- | ----------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SUPER_ADMIN`    | PLATFORM | none        | none                         | Operate the SaaS: create/suspend companies, plans, platform config, platform analytics, audited cross-company reads. **Not** a day-to-day restaurant operator. |
+| `COMPANY_ADMIN`  | COMPANY  | exactly one | all branches of that company | Run the whole business: menus, branches, orders (read/direct), staff, WhatsApp/AI config, company analytics.                                                   |
+| `BRANCH_MANAGER` | BRANCH   | own company | one assigned branch          | Run that branch: order board, kitchen & delivery ops (if permitted), branch staff, branch settings & analytics.                                                |
+| `KITCHEN`        | BRANCH   | own company | one assigned branch          | Kitchen board: accept pending, start prep, and mark ready branch orders.                                                                                       |
+| `DELIVERY`       | BRANCH   | own company | one assigned branch          | Delivery board: start/complete branch deliveries, report delivery failure from OUT_FOR_DELIVERY. No pending-order rejection.                                   |
+| `STAFF`          | BRANCH   | own company | one assigned branch          | General branch operator: accept or reject/cancel pending orders only; no preparation/ready transitions; no settings/staff/finance.                             |
 
 **Scope invariants (must always hold, re-verified server-side per request):**
 
@@ -34,8 +34,8 @@ COMPANY_ADMIN   => companyId=<X>, branchId=null  (sees all branches of X)
 BRANCH_*        => companyId=<X>, branchId=<B> where B belongs to X
 ```
 
-- Permission ≠ scope. **Permission** says *which action*; **scope** says *which
-  rows*. **Both are evaluated** for every protected operation.
+- Permission ≠ scope. **Permission** says _which action_; **scope** says _which
+  rows_. **Both are evaluated** for every protected operation.
 - A user has **exactly one role** in v1 (single `User.role`, engineering default D-16).
   Multi-role is a deliberate extension (role-assignment table), not the initial design.
 - No self-elevation: a company/branch user **cannot** assign or grant a broader
@@ -49,50 +49,50 @@ BRANCH_*        => companyId=<X>, branchId=<B> where B belongs to X
 Capabilities (name format `domain:action[:qualifier]`). "Y" = allowed. Scope is
 **always** additionally enforced (never broader than the role's scope, see §4).
 
-| Capability | SUPER_ADMIN | COMPANY_ADMIN | BRANCH_MANAGER | KITCHEN | DELIVERY | STAFF |
-|---|---|---|---|---|---|---|
-| `company:create` | Y | — | — | — | — | — |
-| `company:suspend/activate` | Y | — | — | — | — | — |
-| `company:settings:write` | — | Y | — | — | — | — |
-| `company:read` (own) | Y(audited) | Y(own) | Y(own) | Y(own) | Y(own) | Y(own) |
-| `company:metrics:read` (platform cross-tenant) | Y | — | — | — | — | — |
-| `company:subscribe:assign` | Y | — | — | — | — | — |
-| `company:usage:read` | Y | Y(own) | — | — | — | — |
-| `branch:create/deactivate` | — | Y | — | — | — | — |
-| `branch:settings:write` (operational settings, own branch) | — | Y | Y(own branch) | — | — | — |
-| `branch:edit` (operational settings, own branch) | — | Y | Y(own branch) | — | — | — |
-| `branch:metrics:read` | — | Y(own co.) | Y(own branch) | — | — | — |
-| `menu:write` | — | Y | — | — | — | — |
-| `menu:read` | — | Y | Y | Y | Y | Y |
-| `menu:branch-availability:write` | — | Y | Y(own branch) | — | — | — |
-| `orders:read` | — | Y(own co.) | Y(own branch) | Y(own branch) | Y(ready+delivery, own branch) | Y(own branch) |
-| `orders:create` (manual / via AI tool) | — | Y(own co.) | Y(own branch) | — | — | Y(own branch) |
-| `orders:transition:accept` | — | — | — | Y | — | Y |
-| `orders:transition:start-prep` (ACCEPTED→IN_PREPARATION) | — | — | — | Y | — | — |
-| `orders:transition:ready` (IN_PREPARATION→READY_FOR_DELIVERY) | — | — | — | Y | — | — |
-| `orders:transition:start-delivery` (READY→OUT_FOR_DELIVERY) | — | — | — | — | Y | — |
-| `orders:transition:complete` (OUT→DELIVERED) | — | — | — | — | Y | — |
-| `orders:transition:cancel` | — | Y(own co.) ¹ | Y(own branch) ¹ | Y(PENDING only) | — | Y(PENDING only) |
-| `orders:transition:fail-delivery` (OUT_FOR_DELIVERY only) | — | — | Y(own branch) ¹ | — | Y | — |
-| `orders:audit:read` (status history) | — | Y(own co.) | Y(own branch) | Y(own branch) | Y(own branch) | Y(own branch) |
-| `kitchen:board` | — | — | Y | Y | — | Y |
-| `delivery:board` | — | — | Y | — | Y | — |
-| `staff:invite` (company-level roles) | — | Y | — | — | — | — |
-| `staff:invite` (branch-level roles in own branch) | — | Y | Y | — | — | — |
-| `staff:deactivate` (within own scope) | — | Y(own co.) | Y(own branch staff) | — | — | — |
-| `staff:self:read` (own account) | Y | Y | Y | Y | Y | Y |
-| `whatsapp:config:write` | — | Y | — | — | — | — |
-| `whatsapp:conversations:read` | Y(audited) | Y(own) | Y(own branch) | — | — | — |
-| `kb:write/read` | — | Y | Y(read) | — | — | — |
-| `ai:config:write` | — | Y | — | — | — | — |
-| `ai:config:read` | Y(audited, no key) | Y(own) | — | — | — | — |
-| `analytics:platform` | Y | — | — | — | — | — |
-| `analytics:company` | — | Y | — | — | — | — |
-| `analytics:operational:read` (volume, throughput, prep/delivery durations, queue depth) | Y | Y(own co.) | Y(own branch) | Y(own branch) | Y(own branch) | Y(own branch) |
-| `analytics:financial:read` (GMV, revenue, avg order value, financial loss) | Y(platform) | Y(own co.) | Y(own branch) | — | — | — |
-| `audit:read` (platform log) | Y | — | — | — | — | — |
-| `audit:read` (own company log) | — | Y | — | — | — | — |
-| `files:upload` (menu/kb) | — | Y | — | — | — | — |
+| Capability                                                                              | SUPER_ADMIN        | COMPANY_ADMIN | BRANCH_MANAGER      | KITCHEN         | DELIVERY                      | STAFF           |
+| --------------------------------------------------------------------------------------- | ------------------ | ------------- | ------------------- | --------------- | ----------------------------- | --------------- |
+| `company:create`                                                                        | Y                  | —             | —                   | —               | —                             | —               |
+| `company:suspend/activate`                                                              | Y                  | —             | —                   | —               | —                             | —               |
+| `company:settings:write`                                                                | —                  | Y             | —                   | —               | —                             | —               |
+| `company:read` (own)                                                                    | Y(audited)         | Y(own)        | Y(own)              | Y(own)          | Y(own)                        | Y(own)          |
+| `company:metrics:read` (platform cross-tenant)                                          | Y                  | —             | —                   | —               | —                             | —               |
+| `company:subscribe:assign`                                                              | Y                  | —             | —                   | —               | —                             | —               |
+| `company:usage:read`                                                                    | Y                  | Y(own)        | —                   | —               | —                             | —               |
+| `branch:create/deactivate`                                                              | —                  | Y             | —                   | —               | —                             | —               |
+| `branch:settings:write` (operational settings, own branch)                              | —                  | Y             | Y(own branch)       | —               | —                             | —               |
+| `branch:edit` (operational settings, own branch)                                        | —                  | Y             | Y(own branch)       | —               | —                             | —               |
+| `branch:metrics:read`                                                                   | —                  | Y(own co.)    | Y(own branch)       | —               | —                             | —               |
+| `menu:write`                                                                            | —                  | Y             | —                   | —               | —                             | —               |
+| `menu:read`                                                                             | —                  | Y             | Y                   | Y               | Y                             | Y               |
+| `menu:branch-availability:write`                                                        | —                  | Y             | Y(own branch)       | —               | —                             | —               |
+| `orders:read`                                                                           | —                  | Y(own co.)    | Y(own branch)       | Y(own branch)   | Y(ready+delivery, own branch) | Y(own branch)   |
+| `orders:create` (manual / via AI tool)                                                  | —                  | Y(own co.)    | Y(own branch)       | —               | —                             | Y(own branch)   |
+| `orders:transition:accept`                                                              | —                  | —             | —                   | Y               | —                             | Y               |
+| `orders:transition:start-prep` (ACCEPTED→IN_PREPARATION)                                | —                  | —             | —                   | Y               | —                             | —               |
+| `orders:transition:ready` (IN_PREPARATION→READY_FOR_DELIVERY)                           | —                  | —             | —                   | Y               | —                             | —               |
+| `orders:transition:start-delivery` (READY→OUT_FOR_DELIVERY)                             | —                  | —             | —                   | —               | Y                             | —               |
+| `orders:transition:complete` (OUT→DELIVERED)                                            | —                  | —             | —                   | —               | Y                             | —               |
+| `orders:transition:cancel`                                                              | —                  | Y(own co.) ¹  | Y(own branch) ¹     | Y(PENDING only) | —                             | Y(PENDING only) |
+| `orders:transition:fail-delivery` (OUT_FOR_DELIVERY only)                               | —                  | —             | Y(own branch) ¹     | —               | Y                             | —               |
+| `orders:audit:read` (status history)                                                    | —                  | Y(own co.)    | Y(own branch)       | Y(own branch)   | Y(own branch)                 | Y(own branch)   |
+| `kitchen:board`                                                                         | —                  | —             | Y                   | Y               | —                             | Y               |
+| `delivery:board`                                                                        | —                  | —             | Y                   | —               | Y                             | —               |
+| `staff:invite` (company-level roles)                                                    | —                  | Y             | —                   | —               | —                             | —               |
+| `staff:invite` (branch-level roles in own branch)                                       | —                  | Y             | Y                   | —               | —                             | —               |
+| `staff:deactivate` (within own scope)                                                   | —                  | Y(own co.)    | Y(own branch staff) | —               | —                             | —               |
+| `staff:self:read` (own account)                                                         | Y                  | Y             | Y                   | Y               | Y                             | Y               |
+| `whatsapp:config:write`                                                                 | —                  | Y             | —                   | —               | —                             | —               |
+| `whatsapp:conversations:read`                                                           | Y(audited)         | Y(own)        | Y(own branch)       | —               | —                             | —               |
+| `kb:write/read`                                                                         | —                  | Y             | Y(read)             | —               | —                             | —               |
+| `ai:config:write`                                                                       | —                  | Y             | —                   | —               | —                             | —               |
+| `ai:config:read`                                                                        | Y(audited, no key) | Y(own)        | —                   | —               | —                             | —               |
+| `analytics:platform`                                                                    | Y                  | —             | —                   | —               | —                             | —               |
+| `analytics:company`                                                                     | —                  | Y             | —                   | —               | —                             | —               |
+| `analytics:operational:read` (volume, throughput, prep/delivery durations, queue depth) | Y                  | Y(own co.)    | Y(own branch)       | Y(own branch)   | Y(own branch)                 | Y(own branch)   |
+| `analytics:financial:read` (GMV, revenue, avg order value, financial loss)              | Y(platform)        | Y(own co.)    | Y(own branch)       | —               | —                             | —               |
+| `audit:read` (platform log)                                                             | Y                  | —             | —                   | —               | —                             | —               |
+| `audit:read` (own company log)                                                          | —                  | Y             | —                   | —               | —                             | —               |
+| `files:upload` (menu/kb)                                                                | —                  | Y             | —                   | —               | —                             | —               |
 
 ¹ **Management boundary:** `COMPANY_ADMIN` and `BRANCH_MANAGER` do not perform kitchen
 or delivery operational transitions. Company Admin can cancel non-terminal orders in
@@ -102,6 +102,7 @@ report `FAILED_DELIVERY` from `OUT_FOR_DELIVERY`. `STAFF` can accept or cancel o
 or reject pending orders. No role can transition a terminal order.
 
 **Operational transition summary (canonical; provenance is tracked in `DECISIONS.md`):**
+
 ```
 PENDING → ACCEPTED             KITCHEN, STAFF
 ACCEPTED → IN_PREPARATION      KITCHEN
@@ -114,6 +115,7 @@ OUT_FOR_DELIVERY → FAILED_DELIVERY  DELIVERY, BRANCH_MANAGER (reason required)
 ```
 
 **Notes:**
+
 - Reads are role-gated **and** scope-gated: e.g. `DELIVERY orders:read` = ready +
   delivery statuses **in their branch only**.
 - `SUPER_ADMIN` cross-tenant read is **audited** every time and exposed through a
@@ -124,12 +126,12 @@ OUT_FOR_DELIVERY → FAILED_DELIVERY  DELIVERY, BRANCH_MANAGER (reason required)
 
 ### 2.1 Grantor allowlists (who may invite/assign which roles)
 
-| Granting actor | Grantable roles |
-|---|---|
-| `SUPER_ADMIN` (platform path only) | Any, including `SUPER_ADMIN` |
-| `COMPANY_ADMIN` | `COMPANY_ADMIN`, `BRANCH_MANAGER`, `KITCHEN`, `DELIVERY`, `STAFF` — **never** `SUPER_ADMIN` |
-| `BRANCH_MANAGER` | `KITCHEN`, `DELIVERY`, `STAFF` — **own branch only** |
-| Anyone else | — (forbidden) |
+| Granting actor                     | Grantable roles                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
+| `SUPER_ADMIN` (platform path only) | Any, including `SUPER_ADMIN`                                                                |
+| `COMPANY_ADMIN`                    | `COMPANY_ADMIN`, `BRANCH_MANAGER`, `KITCHEN`, `DELIVERY`, `STAFF` — **never** `SUPER_ADMIN` |
+| `BRANCH_MANAGER`                   | `KITCHEN`, `DELIVERY`, `STAFF` — **own branch only**                                        |
+| Anyone else                        | — (forbidden)                                                                               |
 
 A DB CHECK constraint enforces the backstop: `role = 'SUPER_ADMIN'` on a new/updated
 `User` or `Invitation` row requires the calling session's `app.scope = 'platform'`
@@ -140,6 +142,7 @@ A DB CHECK constraint enforces the backstop: `role = 'SUPER_ADMIN'` on a new/upd
 Before any deactivation or role-change that would remove the **last** active
 `COMPANY_ADMIN` from a company, the service layer checks whether the post-change
 state leaves at least one active admin. Applies to:
+
 - Deactivating another admin: check remaining active admins ≥ 1 after.
 - **Self-deactivation** (admin deactivates their own account): same check — last
   admin cannot self-remove without an active replacement.
@@ -155,6 +158,7 @@ route to Super Admin re-provision.
 ## 3. Authentication architecture
 
 ### 3.1 Credential & secret handling
+
 - **Password hashing: Argon2id** (memory ~64MB, time ~3, parallelism ~1 — tune to
   budget ~300–500ms; store in `User.passwordHash`).
 - No plaintext passwords/tokens/secrets stored or logged anywhere (incl. audit `meta`).
@@ -163,6 +167,7 @@ route to Super Admin re-provision.
   decryption service (server) can read them; never to client/logs/tools.
 
 ### 3.2 Tokens & sessions (recommended model)
+
 - **Access token:** stateless **JWT**, short-lived (**15 min**). Claims:
   `{ sub: userId, sid: sessionId, jti, ver: permissionsVersion, exp, iat }`.
   JWT carries **only** `{sub, sid, jti, ver}` — **no role, no companyId, no branchId,
@@ -195,6 +200,7 @@ route to Super Admin re-provision.
   company suspension revokes/invalidates sessions for affected users.
 
 ### 3.3 Cookie & CSRF (for the SPA)
+
 - **Recommended: Next.js BFF pattern.** The browser talks to the **same-origin**
   Next app (route handlers / rewrites → NestJS). Session cookies (access/refresh)
   are `HttpOnly`, `Secure`, `SameSite=Lax`, scoped to the app domain. The Nest API
@@ -210,6 +216,7 @@ route to Super Admin re-provision.
   the client's requested room.
 
 ### 3.4 Rate limiting, enumeration, recovery
+
 - **Rate-limit** login, password reset, and refresh (per IP + per account), with
   lockout/backoff on repeated failure.
 - **Prevent user enumeration:** identical 401 for "no such user" and "bad
@@ -220,6 +227,7 @@ route to Super Admin re-provision.
   suspension blocks login/usage.
 
 ### 3.5 Super Admin: bootstrap, protection & RLS-safe auth lifecycle
+
 - **First Super Admin:** created by a controlled, documented **migrator/seed** step
   (env-driven, idempotent, non-interactive in prod). **Never** hardcoded in code.
   Development-only credentials live only in a committed **dev** seed explicitly
@@ -236,12 +244,14 @@ route to Super Admin re-provision.
   - Administrative session revocation (e.g. revoking all sessions of a compromised user, or revoking all sessions of a company on suspension) is an audited administrative function routed exclusively through `PlatformSupportService` using `app_set_platform_scope(p_audit_reason)`, recording an `AuditLog` row in the same transaction. Ordinary auth code cannot invoke this.
 
 ### 3.6 Company onboarding lifecycle (transactional where appropriate)
+
 ```
 SUPER_ADMIN create Company (status INITIATED)   [transaction + audit]
    └─ create first COMPANY_ADMIN Invitation (status PENDING, expiring)
          └─ admin accepts → sets password (Argon2id) → account active
               └─ Company → ACTIVE. Company admin self-serves rest.
 ```
+
 - Company + initial admin invitation are created transactionally (atomic).
 - A COMPANY_ADMIN may invite/create more **company-level** users (incl. admins).
 - Branch-level staff are invited/created by COMPANY_ADMIN (any branch) or
@@ -266,6 +276,7 @@ AuthContext {
 ```
 
 **Every protected operation** evaluates, in order and **fails closed**:
+
 ```
 1. authenticated?                -> 401 otherwise
 2. has capability(user, action)? -> 403 otherwise
@@ -274,6 +285,7 @@ AuthContext {
 4. resource state business rule  -> 409/422 otherwise
 5. transactional write
 ```
+
 - **Default deny:** any unverified authentication/scope/permission/state ⇒ reject.
 - **404 vs 403 policy:** for tenant-protected lookups, return **404** when the
   resource is outside the caller's scope (do not confirm existence of another
@@ -281,7 +293,8 @@ AuthContext {
   denied. Return **401** only for unauthenticated. Consistent and non-leaking.
 
 ### Scope resolution used by the data layer
-- **PLATFORM** (`visibleCompanyIds=ALL`): allowed *only* for SUPER_ADMIN, and any
+
+- **PLATFORM** (`visibleCompanyIds=ALL`): allowed _only_ for SUPER_ADMIN, and any
   cross-tenant tenant-data read is **audited** and routed via the platform-support
   service path.
 - **COMPANY** (company admin): `visibleCompanyIds=[companyId]`,
@@ -298,14 +311,16 @@ tenant-aware data-access layer** (every repository query is built with
 same bound so that any single un-scoped query still cannot leak across tenants.
 
 ### 5.1 Why RLS (and why it is not sufficient alone)
+
 - Pro: a second, independently-configured guard at the engine; catches a forgotten
   `.where(scope)` in one query.
 - Con (with Prisma): Prisma opens pooled connections as **one runtime role** and
   does not set per-tenant RLS variables by itself. So wiring is **explicit and
-  owned by us** (§5.4). RLS must be configured *with* correct GUC handling or it
+  owned by us** (§5.4). RLS must be configured _with_ correct GUC handling or it
   either never activates (useless) or blocks legitimate access (outage).
 
 ### 5.2 Database roles (least privilege)
+
 - `chatpilot_migrator` — owns tables, runs migrations/DDL. May (optionally) hold
   BYPASSRLS **for migrations only**. **Never used at runtime.**
 - `chatpilot_app` — **runtime role.** **NO BYPASSRLS, NOT a superuser, NOT table
@@ -320,6 +335,7 @@ same bound so that any single un-scoped query still cannot leak across tenants.
 **not** a superuser bypass; it is an explicit, audited, GUC-driven policy (§5.5).
 
 ### 5.3 Tables that get RLS policies
+
 RLS is enabled **and forced** on every table below. The migration must contain a
 policy (or an explicitly documented owner-only policy) for each table; omission is
 a migration-test failure:
@@ -347,6 +363,7 @@ directly solves the spec's "never depend on pooled connections preserving a tena
 context."
 
 Helper functions (owned by migrator, granted to app):
+
 ```sql
 CREATE OR REPLACE FUNCTION app_company_id() RETURNS uuid
 LANGUAGE sql STABLE AS $$
@@ -444,6 +461,7 @@ await prisma.$transaction(async (tx) => {
   never 500).
 
 **`service` scope** (for workers/webhooks — non-interactive jobs):
+
 - GUCs derived **only from a DB-verified binding** (e.g. Cloud API webhook or Baileys
   socket event in `whatsapp-worker`: pre-auth read of `WhatsAppConnection` by the receiving
   `businessConnectionId` → resolves company_id/branch_id; BullMQ job payload carries only IDs,
@@ -455,6 +473,7 @@ await prisma.$transaction(async (tx) => {
 
 **`preauth` scope** (for login/invite-accept/password-reset and webhook connection
 resolution before tenant context exists):
+
 - SELECT-only and narrow: login may fetch a user by normalized email; invitation
   acceptance may fetch a pending invitation by a hash; password reset may fetch a
   token by hash; webhook ingress may fetch one active connection by provider and
@@ -482,6 +501,7 @@ tests for list queries and writes.
 
 **Company-scoped table** (e.g. `menu_items`, `knowledge_base_documents` when
 company-level, `company_settings`, `subscription`, `ai_configuration`, `customer`…):
+
 ```sql
 ALTER TABLE menu_items FORCE ROW LEVEL SECURITY;
 ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
@@ -491,12 +511,14 @@ CREATE POLICY tenant_co ON menu_items
   USING ( app_is_platform() OR company_id = app_company_id() )
   WITH CHECK ( app_is_platform() OR company_id = app_company_id() );
 ```
+
 (Company admin and branch roles both carry the same `company_id`, so company-scoped
 reads/writes are uniformly allowed within the company; the permission matrix still
-gates *which* roles may write.)
+gates _which_ roles may write.)
 
 **Branch-scoped table** (e.g. `orders`, `order_items`(via order), `order_status_history`
 (via order), `conversation`(via), `branch`(its own row), `notification`):
+
 ```sql
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders FORCE ROW LEVEL SECURITY;
@@ -515,6 +537,7 @@ CREATE POLICY tenant_branch ON orders
         AND (app_scope() = 'company' OR branch_id = app_branch_id()))
   );
 ```
+
 - A **branch role** (scope `branch`) sets company_id + branch_id ⇒ sees only its
   branch's orders.
 - A **company admin** (scope `company`) sets company_id ⇒ sees **all** branches
@@ -523,6 +546,7 @@ CREATE POLICY tenant_branch ON orders
   has verified SUPER_ADMIN, and every cross-tenant read is **audited**.
 
 **Owner-only tables** (`refresh_token`, `auth_session`, `password_reset_token`):
+
 ```sql
 CREATE OR REPLACE FUNCTION app_user_id() RETURNS uuid
 LANGUAGE sql STABLE AS $$
@@ -536,9 +560,11 @@ CREATE POLICY refresh_token_owner_only ON "RefreshToken"
   USING (user_id = app_user_id())
   WITH CHECK (user_id = app_user_id());
 ```
+
 (`app.user_id` GUC set to the authenticated user per transaction alongside scope.)
 
 **System columns on multi-role tables (`User`):**
+
 ```sql
 ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "User" FORCE ROW LEVEL SECURITY;
@@ -556,23 +582,27 @@ CREATE POLICY user_scope ON "User"
     OR (app_scope() IN ('branch', 'service') AND branch_id = app_branch_id())
   );
 ```
+
 (Platform admin sees all; a company user can manage users within their company; a
 branch role only within their branch. Deactivation/role change flows also respect
 the "last admin" rule at the service layer.)
 
 **WITH CHECK** mirrors `USING` on the same policies for INSERT/UPDATE so a row can
-never be *written* outside the current scope (ownership checks on INSERT/UPDATE).
+never be _written_ outside the current scope (ownership checks on INSERT/UPDATE).
 
 ### 5.6 Platform-level access — explicit & audited (never a bypass)
+
 - There is **no** generic bypass controlled by request body / header / untrusted JWT
-  field. Platform access is only set by the app *after* server-side verification the
+  field. Platform access is only set by the app _after_ server-side verification the
   actor is a SUPER_ADMIN; it is a **server-set GUC**, and any tenant-data read under
   `scope='platform'` is recorded in `AuditLog` (actor, target company, action).
 - The cross-tenant "support view" is a distinct, clearly-labelled code path, so it
   is reviewable and auditable.
 
 ### 5.7 RLS testing requirements (real PostgreSQL only — no in-memory)
+
 Prove with actual PostgreSQL (see `IMPLEMENTATION_PLAN` phase acceptance):
+
 1. With `scope=branch` (co X, branch B): reads/writes on other branches of X and any
    other company ⇒ **0 rows / denied**.
 2. With `scope=company` (co X): all branches of X visible; another company denied.
@@ -595,6 +625,7 @@ raw `set_config` to simulate each context, then asserting row counts.
 
 **Company self-policy** — the `Company` table's `id` IS the tenant root; the
 policy reads `id = app_company_id()`, **not** `company_id = app_company_id()`:
+
 ```sql
 ALTER TABLE "Company" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Company" FORCE ROW LEVEL SECURITY;
@@ -606,6 +637,7 @@ CREATE POLICY company_self ON "Company"
 
 **Nullable-branch tables** — e.g. `KnowledgeBaseDocument` which may be company-wide
 (`branch_id IS NULL`) or branch-specific (`branch_id = <B>`):
+
 ```sql
 ALTER TABLE knowledge_base_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE knowledge_base_documents FORCE ROW LEVEL SECURITY;
@@ -630,11 +662,13 @@ CREATE POLICY kb_doc_scope ON knowledge_base_documents
     )
   );
 ```
+
 `KnowledgeChunk` inherits tenant scope transitively via its parent document's
 `company_id`/`branch_id` (JOIN-based policy or denormalized columns — Phase 7 detail).
 
 **AuditLog** — platform rows visible to SUPER_ADMIN only; company rows visible to
 the company:
+
 ```sql
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log FORCE ROW LEVEL SECURITY;
@@ -658,6 +692,7 @@ BRANCH_MANAGER assigned company-wide) have `branch_id = NULL`. A branch-scope us
 (`app_scope='branch'`) must be **blind to** null-branch admin rows of their company
 (they can read their own row via the `owner_only` or `user_scope` policy's `app.user_id`
 clause, not via the company-wide scan). The `user_scope` policy already handles this:
+
 ```sql
 -- Branch-scope session: app_scope()='branch', app_branch_id()=<B>
 -- Policy "branch" arm: branch_id = app_branch_id() → never matches null-branch rows.
@@ -676,14 +711,15 @@ File access is gated first by the calling user's **capability** (from the permis
 matrix) and then the file's **purpose tag** (set at upload time). The purpose tag
 determines the allowed capability.
 
-| Purpose tag | Required capability | Who can upload | Signed URL TTL |
-|---|---|---|---|
-| `menu-image` | `menu:read` | `menu:write` (COMPANY_ADMIN) | ≤ 5 min |
-| `kb-document` | `kb:read` | `kb:write` (COMPANY_ADMIN) | ≤ 5 min |
-| `receipt` | `orders:read` | — (system-generated) | ≤ 5 min |
-| `avatar` | `staff:self:read` | Self only | ≤ 5 min |
+| Purpose tag   | Required capability | Who can upload               | Signed URL TTL |
+| ------------- | ------------------- | ---------------------------- | -------------- |
+| `menu-image`  | `menu:read`         | `menu:write` (COMPANY_ADMIN) | ≤ 5 min        |
+| `kb-document` | `kb:read`           | `kb:write` (COMPANY_ADMIN)   | ≤ 5 min        |
+| `receipt`     | `orders:read`       | — (system-generated)         | ≤ 5 min        |
+| `avatar`      | `staff:self:read`   | Self only                    | ≤ 5 min        |
 
 Rules:
+
 - Files live in a **private S3 bucket** (no public ACL). Access only via short-lived
   presigned `GET` URLs generated by the server.
 - Signed URL generation checks the caller's capability against the file's purpose tag.
@@ -697,6 +733,7 @@ Rules:
 ## 5.10 Socket.IO authorization contract
 
 Socket.IO handshake is authenticated. Two handshake flows:
+
 - **Type A (same-origin cookie):** BFF cookie containing the access JWT is forwarded;
   the Socket.IO server validates the JWT signature, expiry, and session freshness (§3.2
   step 1–3) on every new connection.
@@ -711,11 +748,13 @@ authenticated identity. `socket.join(...)` calls originating from the **client**
 intercepted, logged (with actor), and dropped — they do not join the room.
 
 Room naming convention:
+
 - `branch:{branchId}` — joined by BRANCH_MANAGER, KITCHEN, DELIVERY, STAFF of that branch; also COMPANY_ADMIN (all branches of company) and SUPER_ADMIN (platform support only)
 - `company:{companyId}` — joined by COMPANY_ADMIN for company-level events
 - `order:{orderId}` — not used (order events are emitted to the branch room)
 
 **Re-validation cadence:**
+
 - The `ver` claim in the authenticated JWT is re-checked on a cadence ≤ the access-token
   TTL (15 min). If `User.permissionsVersion` has advanced beyond JWT `ver` → connection
   forcibly disconnected with code `4003` (stale permissions).
@@ -731,9 +770,11 @@ Detailed data fetched via REST after the push event.
 ## 5.11 Delivery-portal status-filter invariant
 
 The delivery-role order list (`orders:read` for DELIVERY) **must** filter:
+
 ```
 status IN ('READY_FOR_DELIVERY', 'OUT_FOR_DELIVERY')
 ```
+
 This is an **application-layer obligation** — RLS cannot express status filters.
 It is a tested invariant (order-workflow suite): a delivery-role session never
 receives orders with other statuses in its list response. BRANCH_MANAGER board

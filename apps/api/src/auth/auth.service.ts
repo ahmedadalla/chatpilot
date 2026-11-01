@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { PrismaService, TenantScopeService } from '@chatpilot/database';
 import { PasswordService } from './password.service';
 import { SessionService, IssuedSessionTokens } from './session.service';
@@ -50,34 +46,31 @@ export class AuthService {
     }
 
     // 1. Locate user record
-    const user = await this.tenantScopeService.runInScope(
-      { scope: 'preauth' },
-      async (tx) => {
-        const rows = await tx.$queryRaw<PreauthUserRow[]>`
+    const user = await this.tenantScopeService.runInScope({ scope: 'preauth' }, async (tx) => {
+      const rows = await tx.$queryRaw<PreauthUserRow[]>`
           SELECT *
           FROM lookup_user_by_email(${normalizedEmail})
         `;
-        const row = rows[0];
-        if (!row) return null;
+      const row = rows[0];
+      if (!row) return null;
 
-        return {
-          id: row.id,
-          email: row.email,
-          name: row.name,
-          passwordHash: row.password_hash,
-          role: row.role as Role,
-          companyId: row.company_id,
-          branchId: row.branch_id,
-          isActive: row.is_active,
-          deactivatedAt: row.deactivated_at,
-          permissionsVersion: row.permissions_version,
-          totpSecret: row.totp_secret,
-          totpRecoveryCodes: row.totp_recovery_codes,
-          company: row.company_status ? { status: row.company_status as CompanyStatus } : null,
-          branch: row.branch_is_active === null ? null : { isActive: row.branch_is_active },
-        };
-      },
-    );
+      return {
+        id: row.id,
+        email: row.email,
+        name: row.name,
+        passwordHash: row.password_hash,
+        role: row.role as Role,
+        companyId: row.company_id,
+        branchId: row.branch_id,
+        isActive: row.is_active,
+        deactivatedAt: row.deactivated_at,
+        permissionsVersion: row.permissions_version,
+        totpSecret: row.totp_secret,
+        totpRecoveryCodes: row.totp_recovery_codes,
+        company: row.company_status ? { status: row.company_status as CompanyStatus } : null,
+        branch: row.branch_is_active === null ? null : { isActive: row.branch_is_active },
+      };
+    });
 
     if (!user) {
       // Execute dummy password verification to eliminate timing side channels
@@ -134,7 +127,10 @@ export class AuthService {
 
       if (!mfaPassed && recoveryCode && Array.isArray(user.totpRecoveryCodes)) {
         const storedHashedCodes = user.totpRecoveryCodes as string[];
-        const burnResult = this.totpService.verifyAndBurnRecoveryCode(recoveryCode, storedHashedCodes);
+        const burnResult = this.totpService.verifyAndBurnRecoveryCode(
+          recoveryCode,
+          storedHashedCodes,
+        );
 
         if (burnResult.isValid) {
           mfaPassed = true;
@@ -147,7 +143,9 @@ export class AuthService {
       }
 
       if (!mfaPassed) {
-        throw new ForbiddenException('Super Admin login requires valid TOTP MFA code or recovery code');
+        throw new ForbiddenException(
+          'Super Admin login requires valid TOTP MFA code or recovery code',
+        );
       }
     }
 

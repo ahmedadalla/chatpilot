@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { CAPABILITIES_KEY } from '../decorators/require-caps.decorator';
 import { Capability } from '@chatpilot/contracts';
@@ -14,10 +9,10 @@ export class CapabilitiesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredCapabilities = this.reflector.getAllAndOverride<Capability[]>(
-      CAPABILITIES_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredCapabilities = this.reflector.getAllAndOverride<Capability[]>(CAPABILITIES_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     if (!requiredCapabilities || requiredCapabilities.length === 0) {
       return true;

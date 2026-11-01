@@ -24,11 +24,11 @@ export const PURPOSE_PERMISSIONS: Record<
     uploadCap: 'kb:write/read',
     maxSize: 20 * 1024 * 1024, // 20 MB
   },
-  'receipt': {
+  receipt: {
     readCap: 'orders:read',
     maxSize: 10 * 1024 * 1024, // 10 MB
   },
-  'avatar': {
+  avatar: {
     readCap: 'staff:self:read',
     uploadCap: 'staff:self:read',
     maxSize: 2 * 1024 * 1024, // 2 MB
@@ -62,7 +62,9 @@ export class FileService {
 
     // 1. Permission check for upload
     if (purposeConfig.uploadCap && !callerCtx.capabilities.has(purposeConfig.uploadCap)) {
-      throw new ForbiddenException(`Insufficient permissions to upload files for purpose "${purpose}"`);
+      throw new ForbiddenException(
+        `Insufficient permissions to upload files for purpose "${purpose}"`,
+      );
     }
 
     // 2. Size limit validation

@@ -10,7 +10,9 @@ export async function bootstrapSuperAdmin(prisma: PrismaClient): Promise<void> {
   const bootstrapOverride = process.env['BOOTSTRAP_OVERRIDE'] === 'true';
 
   if (isProduction && !bootstrapOverride) {
-    logger.info('Production mode detected without BOOTSTRAP_OVERRIDE=true; skipping automatic bootstrap seed');
+    logger.info(
+      'Production mode detected without BOOTSTRAP_OVERRIDE=true; skipping automatic bootstrap seed',
+    );
     return;
   }
 

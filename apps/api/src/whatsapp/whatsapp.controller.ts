@@ -21,10 +21,7 @@ import { RequireCapabilities } from '../auth/decorators/require-caps.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { InteractiveAuthContext } from '@chatpilot/database';
-import {
-  SetupWhatsAppConnectionDto,
-  WhatsAppProviderType,
-} from '@chatpilot/contracts';
+import { SetupWhatsAppConnectionDto, WhatsAppProviderType } from '@chatpilot/contracts';
 
 @Controller()
 export class WhatsAppController {

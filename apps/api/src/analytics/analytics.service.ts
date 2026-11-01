@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService, InteractiveAuthContext } from '@chatpilot/database';
 import {
   BranchOperationalResponseDto,
@@ -36,7 +32,9 @@ export class AnalyticsService {
       this.prisma.order.count({ where: { companyId, branchId } }),
       this.prisma.order.count({ where: { companyId, branchId, status: OrderStatus.DELIVERED } }),
       this.prisma.order.count({ where: { companyId, branchId, status: OrderStatus.CANCELLED } }),
-      this.prisma.order.count({ where: { companyId, branchId, status: OrderStatus.FAILED_DELIVERY } }),
+      this.prisma.order.count({
+        where: { companyId, branchId, status: OrderStatus.FAILED_DELIVERY },
+      }),
       this.prisma.order.count({
         where: {
           companyId,
@@ -78,7 +76,9 @@ export class AnalyticsService {
   ): Promise<BranchFinancialResponseDto> {
     // 1. Explicit capability check
     if (!callerCtx.capabilities.has('analytics:financial:read')) {
-      throw new ForbiddenException('Operational roles do not have permission to access financial metrics');
+      throw new ForbiddenException(
+        'Operational roles do not have permission to access financial metrics',
+      );
     }
 
     if (callerCtx.branchId && callerCtx.branchId !== branchId) {
@@ -225,7 +225,9 @@ export class AnalyticsService {
    * Shows currency-specific totals without unapproved FX conversion.
    * SaaS MRR is structurally separated from restaurant GMV.
    */
-  async getPlatformMetrics(callerCtx: InteractiveAuthContext): Promise<PlatformAnalyticsResponseDto> {
+  async getPlatformMetrics(
+    callerCtx: InteractiveAuthContext,
+  ): Promise<PlatformAnalyticsResponseDto> {
     if (callerCtx.role !== Role.SUPER_ADMIN) {
       throw new ForbiddenException('Only Super Admin can access platform-wide analytics');
     }
@@ -239,7 +241,9 @@ export class AnalyticsService {
 
     const delivered = await this.prisma.order.count({ where: { status: OrderStatus.DELIVERED } });
     const cancelled = await this.prisma.order.count({ where: { status: OrderStatus.CANCELLED } });
-    const failed = await this.prisma.order.count({ where: { status: OrderStatus.FAILED_DELIVERY } });
+    const failed = await this.prisma.order.count({
+      where: { status: OrderStatus.FAILED_DELIVERY },
+    });
 
     // Group GMV by currency (D-11, D-20)
     const ordersByCurrency = await this.prisma.order.groupBy({

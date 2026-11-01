@@ -106,11 +106,7 @@ export class CompanyService {
   /**
    * Suspends a company and cascades session revocation across all its users.
    */
-  async suspendCompany(
-    companyId: string,
-    reason: string,
-    actorUserId: string,
-  ): Promise<void> {
+  async suspendCompany(companyId: string, reason: string, actorUserId: string): Promise<void> {
     if (!reason || reason.trim() === '') {
       throw new BadRequestException('Suspension reason is required');
     }

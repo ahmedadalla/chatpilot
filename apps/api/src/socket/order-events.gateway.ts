@@ -149,11 +149,7 @@ export class OrderEventsGateway implements OnGatewayConnection, OnGatewayDisconn
   /**
    * Broadcasts order status transition event to branch, company, and role rooms
    */
-  broadcastStatusChanged(
-    companyId: string,
-    branchId: string,
-    payload: OrderSocketEventPayload,
-  ) {
+  broadcastStatusChanged(companyId: string, branchId: string, payload: OrderSocketEventPayload) {
     const branchRoom = `co:${companyId}:br:${branchId}`;
     const companyRoom = `co:${companyId}`;
 

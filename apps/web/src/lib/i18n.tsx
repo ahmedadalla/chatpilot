@@ -142,13 +142,16 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(LANGUAGE_KEY, nextLanguage);
   };
 
-  const value = useMemo<I18nContextValue>(() => ({
-    language,
-    locale: languageToLocale(language),
-    direction: languageToDirection(language),
-    setLanguage,
-    t: (key) => messages[language][key],
-  }), [language]);
+  const value = useMemo<I18nContextValue>(
+    () => ({
+      language,
+      locale: languageToLocale(language),
+      direction: languageToDirection(language),
+      setLanguage,
+      t: (key) => messages[language][key],
+    }),
+    [language],
+  );
 
   useEffect(() => {
     document.documentElement.lang = value.locale;
