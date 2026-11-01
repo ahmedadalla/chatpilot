@@ -39,6 +39,7 @@ import { ScopeGuard } from './guards/scope.guard';
     PasswordResetService,
     InvitationService,
     PermissionVersionService,
+    TenantScopeService,
     JwtAuthGuard,
     CapabilitiesGuard,
     ScopeGuard,
