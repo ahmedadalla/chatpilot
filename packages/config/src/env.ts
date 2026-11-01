@@ -4,6 +4,7 @@ export const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3001),
   WEB_PORT: z.coerce.number().default(3000),
+  WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
   WHATSAPP_WORKER_PORT: z.coerce.number().default(3002),
 
   // Database DSNs
