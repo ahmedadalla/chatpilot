@@ -8,12 +8,17 @@ import { AuthUser, getStoredUser, logout } from '../lib/auth';
 const navItems = [
   { href: '/dashboard', label: 'نظرة عامة', roles: ['*'] },
   { href: '/admin/companies', label: 'الشركات والمنصة', roles: ['SUPER_ADMIN'] },
+  { href: '/admin/analytics', label: 'تحليلات المنصة', roles: ['SUPER_ADMIN'] },
   { href: '/company/branches', label: 'الفروع', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'] },
+  { href: '/company/settings', label: 'إعدادات الشركة', roles: ['COMPANY_ADMIN'] },
   { href: '/company/staff', label: 'فريق العمل', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'BRANCH_MANAGER'] },
   { href: '/company/menu', label: 'القائمة', roles: ['COMPANY_ADMIN', 'BRANCH_MANAGER'] },
   { href: '/company/knowledge', label: 'قاعدة المعرفة', roles: ['COMPANY_ADMIN', 'BRANCH_MANAGER'] },
+  { href: '/company/whatsapp', label: 'اتصال واتساب', roles: ['COMPANY_ADMIN'] },
   { href: '/company/analytics', label: 'تحليلات الشركة', roles: ['SUPER_ADMIN', 'COMPANY_ADMIN'] },
   { href: '/branch/analytics', label: 'تحليلات الفرع', roles: ['BRANCH_MANAGER', 'KITCHEN', 'DELIVERY', 'STAFF'] },
+  { href: '/branch/settings', label: 'إعدادات الفرع', roles: ['BRANCH_MANAGER'] },
+  { href: '/branch/menu', label: 'إتاحة القائمة', roles: ['BRANCH_MANAGER'] },
   { href: '/kitchen', label: 'لوحة المطبخ', roles: ['KITCHEN', 'STAFF', 'BRANCH_MANAGER'] },
   { href: '/delivery', label: 'لوحة التوصيل', roles: ['DELIVERY', 'BRANCH_MANAGER'] },
 ];
