@@ -73,7 +73,7 @@ export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
         .then((availableBranches) => {
           const activeBranches = availableBranches.filter((branch) => branch.isActive);
           setBranches(activeBranches);
-          setSelectedBranchId((current) => current || activeBranches[0]?.id || '');
+          setSelectedBranchId((current: string) => current || activeBranches[0]?.id || '');
         })
         .catch((loadError) => setError(loadError instanceof ApiError ? loadError.message : 'تعذر تحميل الفروع.'))
         .finally(() => setBranchesLoading(false));

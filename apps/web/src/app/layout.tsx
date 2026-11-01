@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import React from 'react';
 import { LanguageProvider } from '../lib/i18n';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'ChatPilot | منصة شات بايلوت',
@@ -14,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ar" dir="rtl">
-      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased font-sans">
+      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
