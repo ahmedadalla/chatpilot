@@ -96,12 +96,12 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // Extract session ID from request payload
-    const authHeader = req.headers['authorization'];
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      // Clear cookie
-      res.clearCookie('cp_rft', { path: '/api/v1/auth' });
+    if (!user.sessionId) {
+      throw new UnauthorizedException('Session is invalid or has been revoked');
     }
+
+    await this.sessionService.revokeSession(user.sessionId, user.userId);
+    res.clearCookie('cp_rft', { path: '/api/v1/auth' });
 
     return { success: true };
   }

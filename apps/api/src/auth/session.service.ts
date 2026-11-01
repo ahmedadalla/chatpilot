@@ -1,5 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { PrismaService } from '@chatpilot/database';
+import { PrismaService, TenantScopeService } from '@chatpilot/database';
 import { TokenService } from './token.service';
 import { randomBytes, createHash } from 'node:crypto';
 import { CompanyStatus, Role } from '@chatpilot/contracts';
@@ -16,6 +16,7 @@ export class SessionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokenService: TokenService,
+    private readonly tenantScopeService: TenantScopeService,
   ) {}
 
   /**
@@ -85,10 +86,30 @@ export class SessionService {
 
     const incomingHash = this.hashToken(rawRefreshToken);
 
-    return this.prisma.$transaction(async (tx) => {
-      // 1. Locate the refresh token record
+    const lookup = await this.prisma.$queryRaw<
+      Array<{ id: string; user_id: string; company_id: string | null; branch_id: string | null }>
+    >`
+      SELECT id, user_id, company_id, branch_id
+      FROM lookup_refresh_token_by_hash(${incomingHash})
+    `;
+    const tokenOwner = lookup[0];
+    if (!tokenOwner) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const refreshScope = tokenOwner.company_id
+      ? {
+          scope: tokenOwner.branch_id ? ('branch' as const) : ('company' as const),
+          companyId: tokenOwner.company_id,
+          branchId: tokenOwner.branch_id,
+          userId: tokenOwner.user_id,
+        }
+      : { scope: 'user' as const, userId: tokenOwner.user_id };
+
+    return this.tenantScopeService.runInScope(refreshScope, async (tx) => {
+      // 1. Locate the refresh token record inside the owner scope
       const tokenRecord = await tx.refreshToken.findUnique({
-        where: { tokenHash: incomingHash },
+        where: { id: tokenOwner.id },
         include: {
           session: true,
           user: {
@@ -100,7 +121,7 @@ export class SessionService {
         },
       });
 
-      if (!tokenRecord) {
+      if (!tokenRecord || tokenRecord.tokenHash !== incomingHash) {
         throw new UnauthorizedException('Invalid refresh token');
       }
 
@@ -198,7 +219,7 @@ export class SessionService {
    * Revokes a session and all its associated refresh tokens on logout
    */
   async revokeSession(sessionId: string, userId: string): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    await this.tenantScopeService.runInScope({ scope: 'user', userId }, async (tx) => {
       await tx.authSession.updateMany({
         where: { id: sessionId, userId, revokedAt: null },
         data: { revokedAt: new Date() },

@@ -34,7 +34,13 @@ const cards = [
     href: '/company/menu',
     title: 'القائمة',
     description: 'التصنيفات والوجبات والتوافر',
-    roles: ['COMPANY_ADMIN', 'BRANCH_MANAGER'],
+    roles: ['COMPANY_ADMIN'],
+  },
+  {
+    href: '/branch/menu',
+    title: 'توافر القائمة للفرع',
+    description: 'تفعيل وتعطيل عناصر القائمة في فرعك',
+    roles: ['BRANCH_MANAGER'],
   },
   {
     href: '/admin/companies',

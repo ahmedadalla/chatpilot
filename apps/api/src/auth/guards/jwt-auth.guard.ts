@@ -1,6 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { PrismaService, InteractiveAuthContext } from '@chatpilot/database';
+import { InteractiveAuthContext, TenantScopeService } from '@chatpilot/database';
 import { TokenService } from '../token.service';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { ROLE_CAPABILITIES, CompanyStatus, Role } from '@chatpilot/contracts';
@@ -10,7 +10,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly tokenService: TokenService,
-    private readonly prisma: PrismaService,
+    private readonly tenantScopeService: TenantScopeService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,35 +38,54 @@ export class JwtAuthGuard implements CanActivate {
     // 2. Verify JWT signature & expiration (contains only { sub, sid, jti, ver })
     const payload = this.tokenService.verifyAccessToken(token);
 
-    // 3. Verify server-side session exists and is not revoked/expired
-    const session = await this.prisma.authSession.findUnique({
-      where: { id: payload.sid },
-    });
+    // 3. Load owner-only auth records inside the user's RLS scope.
+    const identity = await this.tenantScopeService.runInScope(
+      { scope: 'user', userId: payload.sub },
+      async (tx) => {
+        const [session, user] = await Promise.all([
+          tx.authSession.findUnique({ where: { id: payload.sid } }),
+          tx.user.findUnique({ where: { id: payload.sub } }),
+        ]);
+        return { session, user };
+      },
+    );
 
+    const { session, user } = identity;
     if (!session || session.revokedAt !== null || session.expiresAt < new Date()) {
       throw new UnauthorizedException('Session is invalid or has been revoked');
     }
-
-    // 4. Load fresh user record (never trust scope from client)
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      include: {
-        company: true,
-        branch: true,
-      },
-    });
 
     if (!user || !user.isActive || (user.deactivatedAt && user.deactivatedAt <= new Date())) {
       throw new UnauthorizedException('User account is deactivated');
     }
 
-    // 5. Verify company & branch active status
+    // 4. Verify company & branch active status in the user's tenant scope.
+    const tenant =
+      user.role !== Role.SUPER_ADMIN && user.companyId
+        ? await this.tenantScopeService.runInScope(
+            {
+              scope: user.branchId ? 'branch' : 'company',
+              companyId: user.companyId,
+              branchId: user.branchId,
+            },
+            async (tx) => {
+              const [company, branch] = await Promise.all([
+                tx.company.findUnique({ where: { id: user.companyId! } }),
+                user.branchId
+                  ? tx.branch.findUnique({ where: { id: user.branchId } })
+                  : Promise.resolve(null),
+              ]);
+              return { company, branch };
+            },
+          )
+        : null;
+
     if (user.role !== Role.SUPER_ADMIN && user.companyId) {
-      if (!user.company || user.company.status !== CompanyStatus.ACTIVE) {
+      if (!tenant?.company || tenant.company.status !== CompanyStatus.ACTIVE) {
         throw new UnauthorizedException('Company account is suspended');
       }
 
-      if (user.branchId && (!user.branch || !user.branch.isActive)) {
+      if (user.branchId && (!tenant.branch || !tenant.branch.isActive)) {
         throw new UnauthorizedException('Assigned branch is deactivated');
       }
     }
