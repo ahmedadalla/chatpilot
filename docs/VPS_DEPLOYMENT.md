@@ -2,11 +2,12 @@
 
 **Target Environment:** Standard Linux Virtual Private Server (Ubuntu 22.04 LTS / 24.04 LTS)  
 **Deployment Method:** Direct Docker Compose, Nginx Reverse Proxy & Certbot TLS  
-**Document Status:** Complete, Authoritative Production Standard  
+**Document Status:** Complete, Authoritative Production Standard
 
 ---
 
 ## Table of Contents
+
 1. [Deployment Overview and Architecture](#1-deployment-overview-and-architecture)
 2. [VPS Prerequisites](#2-vps-prerequisites)
 3. [Initial Server Setup](#3-initial-server-setup)
@@ -26,6 +27,7 @@
 ## 1. Deployment Overview and Architecture
 
 ### 1.1 Architecture & Component Topology
+
 ChatPilot is deployed as a containerized multi-tier stack orchestrated by Docker Compose on a single Linux VPS. Ingress traffic is managed by host-level Nginx, providing TLS termination, HTTP/2 multiplexing, WebSocket protocol upgrading, and reverse proxying to isolated local ports.
 
 ```
@@ -57,6 +59,7 @@ ChatPilot is deployed as a containerized multi-tier stack orchestrated by Docker
 ```
 
 ### 1.2 Responsibilities of Stack Components
+
 1. **Host Nginx:** Terminates HTTPS, forces HTTP-to-HTTPS redirect, sets security headers, and routes `app.yourdomain.com` to port 3000 and `api.yourdomain.com` to port 3001.
 2. **`chatpilot-web` (`apps/web`):** Next.js App Router acting as the Backend-For-Frontend (BFF). Serves server-rendered role portals (Admin, Company, Branch, Kitchen, Delivery) with Arabic RTL-first (`ar-EG`) and English (`en-US`) support.
 3. **`chatpilot-api` (`apps/api`):** NestJS modular monolith handling business logic, authentication (Argon2id, rotating CAS refresh tokens, TOTP MFA), state machine transitions, and Socket.IO real-time gateways.
@@ -66,51 +69,58 @@ ChatPilot is deployed as a containerized multi-tier stack orchestrated by Docker
 7. **`chatpilot-redis`:** Redis 7 Alpine instance backing BullMQ job queues, real-time Socket.IO adapter pub/sub, and session revocation channels.
 
 ### 1.3 Port Isolation & Network Boundary
-* **Public Ports (0.0.0.0):** Only `22` (SSH), `80` (HTTP), and `443` (HTTPS) are exposed through the firewall.
-* **Internal Application Ports (127.0.0.1 on Host):**
-  * Port `3000`: `chatpilot-web` (bound exclusively to loopback).
-  * Port `3001`: `chatpilot-api` (bound exclusively to loopback).
-  * Port `3002`: `chatpilot-whatsapp-worker` (internal communication / optional diagnostics).
-* **Private Network (Docker Bridge `chatpilot-net`):**
-  * Port `5432`: PostgreSQL (never exposed to host or internet).
-  * Port `6379`: Redis (never exposed to host or internet).
+
+- **Public Ports (0.0.0.0):** Only `22` (SSH), `80` (HTTP), and `443` (HTTPS) are exposed through the firewall.
+- **Internal Application Ports (127.0.0.1 on Host):**
+  - Port `3000`: `chatpilot-web` (bound exclusively to loopback).
+  - Port `3001`: `chatpilot-api` (bound exclusively to loopback).
+  - Port `3002`: `chatpilot-whatsapp-worker` (internal communication / optional diagnostics).
+- **Private Network (Docker Bridge `chatpilot-net`):**
+  - Port `5432`: PostgreSQL (never exposed to host or internet).
+  - Port `6379`: Redis (never exposed to host or internet).
 
 ---
 
 ## 2. VPS Prerequisites
 
 ### 2.1 Hardware Requirements
-* **Operating System:** Ubuntu 22.04 LTS or Ubuntu 24.04 LTS (64-bit clean minimal installation).
-* **CPU:** 2 vCPU minimum (4 vCPU recommended for high concurrent order volumes).
-* **RAM:** 4 GB physical RAM minimum + 4 GB Swap space (8 GB physical RAM recommended).
-* **Storage:** 40 GB NVMe / SSD minimum with at least 15 GB free disk space.
-* **Network:** Static public IPv4 address.
+
+- **Operating System:** Ubuntu 22.04 LTS or Ubuntu 24.04 LTS (64-bit clean minimal installation).
+- **CPU:** 2 vCPU minimum (4 vCPU recommended for high concurrent order volumes).
+- **RAM:** 4 GB physical RAM minimum + 4 GB Swap space (8 GB physical RAM recommended).
+- **Storage:** 40 GB NVMe / SSD minimum with at least 15 GB free disk space.
+- **Network:** Static public IPv4 address.
 
 ### 2.2 Domain & DNS Requirements
+
 Configure two **A Records** pointing to your VPS public IPv4 address at your domain registrar or Cloudflare (set proxy status to **DNS Only / Gray Cloud** during initial SSL verification):
 
-| Record Type | Subdomain / Name | Destination IP | Purpose |
-|---|---|---|---|
-| **A** | `app.yourdomain.com` | `YOUR_VPS_PUBLIC_IP` | Next.js Web UI & Portal |
-| **A** | `api.yourdomain.com` | `YOUR_VPS_PUBLIC_IP` | REST API, Webhooks & Socket.IO |
+| Record Type | Subdomain / Name     | Destination IP       | Purpose                        |
+| ----------- | -------------------- | -------------------- | ------------------------------ |
+| **A**       | `app.yourdomain.com` | `YOUR_VPS_PUBLIC_IP` | Next.js Web UI & Portal        |
+| **A**       | `api.yourdomain.com` | `YOUR_VPS_PUBLIC_IP` | REST API, Webhooks & Socket.IO |
 
 ---
 
 ## 3. Initial Server Setup
 
 Log in to the VPS via SSH as `root`:
+
 ```bash
 ssh root@YOUR_VPS_IP
 ```
 
 ### 3.1 Update Base System Packages
+
 ```bash
 apt-get update && apt-get upgrade -y
 apt-get install -y ca-certificates curl gnupg ufw git fail2ban htop wget
 ```
 
 ### 3.2 Create Swap Space (Critical for VPS Stability)
+
 Cloud VPS instances (especially on AWS, Hetzner, or DigitalOcean) often ship without swap memory. Compiling TypeScript and Docker images can trigger Linux Out-Of-Memory (OOM) kills without swap:
+
 ```bash
 # Check if swap exists
 free -h
@@ -129,6 +139,7 @@ free -h
 ```
 
 ### 3.3 Configure UFW Firewall
+
 ```bash
 ufw default deny incoming
 ufw default allow outgoing
@@ -140,6 +151,7 @@ ufw status verbose
 ```
 
 ### 3.4 Create Dedicated Deployment User (`deploy`)
+
 ```bash
 # Create user without interactive prompts
 adduser --gecos "" --disabled-password deploy
@@ -158,7 +170,9 @@ chmod 600 /home/deploy/.ssh/authorized_keys 2>/dev/null || true
 ## 4. Application Installation
 
 ### 4.1 Install Docker Engine & Docker Compose Plugin
+
 Install official Docker Engine packages on Ubuntu:
+
 ```bash
 # Remove outdated packages if present
 apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
@@ -190,6 +204,7 @@ docker compose version
 ```
 
 ### 4.2 Clone Repository & Prepare Directory Structure
+
 ```bash
 # Create application root directory
 mkdir -p /opt/chatpilot
@@ -209,14 +224,18 @@ git checkout main
 ## 5. Production Environment Variables
 
 ### 5.1 Create `.env.production`
+
 Copy the production template:
+
 ```bash
 cp .env.production.example .env.production
 chmod 600 .env.production
 ```
 
 ### 5.2 Generate Cryptographically Secure Secrets
+
 Run these commands to generate random 256-bit credentials:
+
 ```bash
 # Generates 32-byte passwords and base64 keys
 MIGRATOR_PW=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9')
@@ -231,6 +250,7 @@ echo "Redis PW:             $REDIS_PW"
 ```
 
 ### 5.3 Complete Production Variables Reference
+
 Edit `/opt/chatpilot/.env.production` (`nano .env.production`) and populate every variable:
 
 ```env
@@ -303,6 +323,7 @@ BOOTSTRAP_OVERRIDE=true
 ```
 
 ### 5.4 Create `.env` Symlink (Essential for Docker Compose)
+
 Docker Compose by default reads `.env` for variable interpolation. Creating a symlink ensures that all `docker compose` commands (like `ps`, `up`, `logs`) automatically load your production variables without needing `--env-file` every time:
 
 ```bash
@@ -317,18 +338,23 @@ ln -sf .env.production .env
 The database follows a **Two-DSN Least Privilege Model (D-3, D-4)**. The application runtime role (`chatpilot_app`) has no `BYPASSRLS` privileges and cannot modify schemas.
 
 ### 6.1 Start Database and Cache Backing Services
+
 ```bash
 cd /opt/chatpilot
 ln -sf .env.production .env
 docker compose -f docker-compose.prod.yml up -d postgres redis
 ```
+
 Verify both containers report `healthy`:
+
 ```bash
 docker compose -f docker-compose.prod.yml ps
 ```
-*(If postgres was previously started with an empty password and is in a restart loop, run `docker compose -f docker-compose.prod.yml down -v` to reset the volume and start clean).*
+
+_(If postgres was previously started with an empty password and is in a restart loop, run `docker compose -f docker-compose.prod.yml down -v` to reset the volume and start clean)._
 
 ### 6.2 Initialize Security Roles & Grants
+
 Execute `000_init_roles.sql` into the running PostgreSQL container as `chatpilot_migrator`. Substitute `YOUR_APP_PASSWORD_HERE` with the actual value from `.env.production`:
 
 ```bash
@@ -357,7 +383,9 @@ EOF
 ```
 
 ### 6.3 Deploy Prisma Schema Tables
+
 Load the migrator DSN into the shell without printing its value:
+
 ```bash
 set -a
 . ./.env.production
@@ -367,6 +395,7 @@ set +a
 Run Prisma schema synchronization inside a temporary migration container. The API
 image must be rebuilt from the current `compose/Dockerfile.api` first so that
 `pnpm` is available in the runner image:
+
 ```bash
 docker compose -f docker-compose.prod.yml build api
 
@@ -377,7 +406,9 @@ docker compose -f docker-compose.prod.yml run --rm \
 ```
 
 ### 6.4 Apply Row-Level Security & pgvector Extensions
+
 Apply the raw SQL security migrations in sequence:
+
 ```bash
 docker exec -i chatpilot-postgres psql -U chatpilot_migrator -d chatpilot < prisma/migrations/001_guc_helpers.sql
 docker exec -i chatpilot-postgres psql -U chatpilot_migrator -d chatpilot < prisma/migrations/002_preauth_lookups.sql
@@ -386,48 +417,60 @@ docker exec -i chatpilot-postgres psql -U chatpilot_migrator -d chatpilot < pris
 ```
 
 ### 6.5 Verify Database RLS Enforcement
+
 Verify that un-scoped reads fail closed with 0 rows:
+
 ```bash
 docker exec -i chatpilot-postgres psql -U chatpilot_app -d chatpilot -c "SELECT count(*) FROM companies;"
 ```
-*Expected Output:* `count: 0` (even if companies exist, the absence of tenant GUCs forces 0 rows).
+
+_Expected Output:_ `count: 0` (even if companies exist, the absence of tenant GUCs forces 0 rows).
 
 ---
 
 ## 7. Production Build and Deployment
 
 ### 7.1 Build and Launch Application Containers
+
 Run Docker Compose in production mode:
+
 ```bash
 cd /opt/chatpilot
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 ### 7.2 Verify Running Services
+
 ```bash
 docker compose -f docker-compose.prod.yml ps
 ```
+
 All six containers must show status `Up` or `Up (healthy)`:
-* `chatpilot-postgres` (pgvector:pg17)
-* `chatpilot-redis` (redis:7-alpine)
-* `chatpilot-api` (NestJS API on `127.0.0.1:3001`)
-* `chatpilot-worker` (BullMQ consumer)
-* `chatpilot-whatsapp-worker` (Baileys on `127.0.0.1:3002`)
-* `chatpilot-web` (Next.js on `127.0.0.1:3000`)
+
+- `chatpilot-postgres` (pgvector:pg17)
+- `chatpilot-redis` (redis:7-alpine)
+- `chatpilot-api` (NestJS API on `127.0.0.1:3001`)
+- `chatpilot-worker` (BullMQ consumer)
+- `chatpilot-whatsapp-worker` (Baileys on `127.0.0.1:3002`)
+- `chatpilot-web` (Next.js on `127.0.0.1:3000`)
 
 The production Compose file overrides the shared `PORT=3001` value for the web
 service with `PORT=3000`, matching the published web port:
+
 ```yaml
 environment:
-  PORT: "3000"
+  PORT: '3000'
 ```
 
 The API healthcheck must use the IPv4 loopback address because the API listens on
 `0.0.0.0:3001` inside the container:
+
 ```yaml
-test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001/healthz"]
+test: ['CMD', 'wget', '--spider', '-q', 'http://127.0.0.1:3001/healthz']
 ```
+
 If the API is running but reports `unhealthy`, inspect the healthcheck result:
+
 ```bash
 docker inspect --format='{{json .State.Health}}' chatpilot-api
 docker compose -f docker-compose.prod.yml logs --tail=100 api
@@ -438,17 +481,21 @@ docker compose -f docker-compose.prod.yml logs --tail=100 api
 ## 8. Domain, Reverse Proxy, and HTTPS
 
 Switch back to the `root` user to configure Nginx and Certbot:
+
 ```bash
 exit # or sudo su
 ```
 
 ### 8.1 Install Nginx & Certbot
+
 ```bash
 apt-get install -y nginx certbot python3-certbot-nginx
 ```
 
 ### 8.2 Create Nginx Virtual Host for Web Portal (`app.ahmedelnwawy.me`)
+
 Create `/etc/nginx/sites-available/chatpilot-web.conf`:
+
 ```nginx
 server {
     listen 80;
@@ -472,7 +519,9 @@ server {
 ```
 
 ### 8.3 Create Nginx Virtual Host for API & Socket.IO (`api.ahmedelnwawy.me`)
+
 Create `/etc/nginx/sites-available/chatpilot-api.conf`:
+
 ```nginx
 server {
     listen 80;
@@ -498,6 +547,7 @@ server {
 ```
 
 ### 8.4 Enable Sites and Obtain Let's Encrypt Certificates
+
 ```bash
 # Enable virtual hosts
 ln -sfn /etc/nginx/sites-available/chatpilot-web.conf /etc/nginx/sites-enabled/chatpilot-web.conf
@@ -523,6 +573,7 @@ certbot --nginx \
 ## 9. Post-Deployment Verification
 
 ### 9.1 Verification Commands Checklist
+
 Execute the following verification commands:
 
 ```bash
@@ -540,6 +591,7 @@ curl -I https://app.yourdomain.com
 ```
 
 ### 9.2 First Admin Login & TOTP Setup
+
 1. Open `https://app.yourdomain.com` in your web browser.
 2. Click **تسجيل الدخول إلى لوحة التحكم** or open `/login`.
 3. Verify that the interface renders in Arabic with proper RTL alignment.
@@ -549,8 +601,10 @@ curl -I https://app.yourdomain.com
 7. **Securely store the 10 single-use recovery codes.**
 
 ### 9.3 Post-Bootstrap Security Clean-Up
+
 After the API logs confirm `First Super Admin bootstrapped successfully`, remove the
 bootstrap flag to prevent bootstrap checks on subsequent restarts:
+
 ```bash
 su - deploy
 cd /opt/chatpilot
@@ -563,7 +617,9 @@ docker compose -f docker-compose.prod.yml up -d --force-recreate api
 ## 10. Application Updates and Rollbacks
 
 ### 10.1 Safe Update Procedure
+
 To deploy a new commit from the Git repository:
+
 ```bash
 su - deploy
 cd /opt/chatpilot
@@ -598,7 +654,9 @@ curl -s https://api.yourdomain.com/readyz
 ```
 
 ### 10.2 Rollback Procedure
+
 If a deployment fails:
+
 ```bash
 su - deploy
 cd /opt/chatpilot
@@ -620,16 +678,20 @@ docker compose -f docker-compose.prod.yml up -d --build
 ## 11. Production Security
 
 ### 11.1 Least-Privilege Database Access
-* The `chatpilot_app` database user holds zero DDL permissions and `NOBYPASSRLS`.
-* All queries run inside transactions where GUCs (`app.company_id`, `app.branch_id`) are applied locally via `set_config(..., true)`. Connections returned to the pool immediately revert to zero-tenant context.
+
+- The `chatpilot_app` database user holds zero DDL permissions and `NOBYPASSRLS`.
+- All queries run inside transactions where GUCs (`app.company_id`, `app.branch_id`) are applied locally via `set_config(..., true)`. Connections returned to the pool immediately revert to zero-tenant context.
 
 ### 11.2 Environment File Hardening
-* `.env.production` is owned by `deploy:deploy` with strict `0600` permissions (`-rw-------`).
-* `.gitignore` includes `.env*` to prevent accidental commit of production credentials.
+
+- `.env.production` is owned by `deploy:deploy` with strict `0600` permissions (`-rw-------`).
+- `.gitignore` includes `.env*` to prevent accidental commit of production credentials.
 
 ### 11.3 Systemd Auto-Start Service
+
 Ensure the Docker stack restarts automatically on system reboot:
 Create `/etc/systemd/system/chatpilot.service` as `root`:
+
 ```ini
 [Unit]
 Description=ChatPilot Docker Stack
@@ -649,7 +711,9 @@ TimeoutStartSec=0
 [Install]
 WantedBy=multi-user.target
 ```
+
 Enable the service:
+
 ```bash
 systemctl daemon-reload
 systemctl enable chatpilot.service
@@ -660,13 +724,16 @@ systemctl enable chatpilot.service
 ## 12. Monitoring and Maintenance
 
 ### 12.1 Automated Daily Backups
+
 Create backup directory and script:
+
 ```bash
 mkdir -p /opt/chatpilot/scripts /var/backups/chatpilot
 chown -R deploy:deploy /opt/chatpilot/scripts /var/backups/chatpilot
 ```
 
 Create `/opt/chatpilot/scripts/backup.sh`:
+
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
@@ -685,17 +752,21 @@ find "$BACKUP_DIR" -type f -name "*.dump" -mtime +7 -delete
 
 echo "[$(date)] Backup completed successfully: $BACKUP_FILE"
 ```
+
 Make executable:
+
 ```bash
 chmod +x /opt/chatpilot/scripts/backup.sh
 ```
 
 Add to cron (`crontab -e` as `root`):
+
 ```cron
 0 3 * * * /opt/chatpilot/scripts/backup.sh >> /var/log/chatpilot-backup.log 2>&1
 ```
 
 ### 12.2 Inspecting Live Logs
+
 ```bash
 su - deploy
 cd /opt/chatpilot
@@ -715,29 +786,33 @@ docker compose -f docker-compose.prod.yml logs -f --tail=100 worker
 ## 13. Troubleshooting
 
 ### 13.1 `docker: not found` or Installation Errors
-* **Symptom:** Docker installer fails with package hold errors or missing release.
-* **Fix:** Unhold packages and install Docker with `--allow-change-held-packages`:
+
+- **Symptom:** Docker installer fails with package hold errors or missing release.
+- **Fix:** Unhold packages and install Docker with `--allow-change-held-packages`:
   ```bash
   apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras 2>/dev/null || true
   apt-get install -y --allow-change-held-packages docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   ```
 
 ### 13.2 Build Memory Exhaustion or Freezing
-* **Symptom:** Build hangs during `pnpm install` or `next build` on a 2GB/4GB VPS.
-* **Fix:** Add a 4GB swapfile (Section 3.2).
+
+- **Symptom:** Build hangs during `pnpm install` or `next build` on a 2GB/4GB VPS.
+- **Fix:** Add a 4GB swapfile (Section 3.2).
 
 ### 13.3 `RLS_SELF_TEST_FAILED_DATA_LEAK` (HTTP 503 on `/readyz`)
-* **Symptom:** `/readyz` returns 503 with reason `RLS_SELF_TEST_FAILED_DATA_LEAK`.
-* **Cause:** The `DATABASE_URL` is connected with superuser privileges or `chatpilot_app` role was granted `BYPASSRLS`.
-* **Fix:** Re-run the role revocation in Section 6.2:
+
+- **Symptom:** `/readyz` returns 503 with reason `RLS_SELF_TEST_FAILED_DATA_LEAK`.
+- **Cause:** The `DATABASE_URL` is connected with superuser privileges or `chatpilot_app` role was granted `BYPASSRLS`.
+- **Fix:** Re-run the role revocation in Section 6.2:
   ```sql
   ALTER ROLE chatpilot_app NOBYPASSRLS NOSUPERUSER;
   ```
 
 ### 13.4 API or workers fail with `S3_ENDPOINT: Invalid url`
-* **Symptom:** `chatpilot-api`, `chatpilot-worker`, or `chatpilot-whatsapp-worker` exits or restarts with an invalid S3 endpoint.
-* **Cause:** `S3_ENDPOINT` is empty, contains a placeholder, or uses an Availability Zone such as `eu-north-1a` instead of the S3 region.
-* **Fix:** Set the bucket region, not the Availability Zone, and recreate all application services:
+
+- **Symptom:** `chatpilot-api`, `chatpilot-worker`, or `chatpilot-whatsapp-worker` exits or restarts with an invalid S3 endpoint.
+- **Cause:** `S3_ENDPOINT` is empty, contains a placeholder, or uses an Availability Zone such as `eu-north-1a` instead of the S3 region.
+- **Fix:** Set the bucket region, not the Availability Zone, and recreate all application services:
   ```env
   S3_BUCKET=chatpilot-production-uploads
   S3_REGION=eu-north-1
@@ -754,8 +829,9 @@ docker compose -f docker-compose.prod.yml logs -f --tail=100 worker
   were exposed.
 
 ### 13.5 API migration command fails with `/app/pnpm` or missing schema
-* **Symptom:** The temporary migration container cannot find `pnpm`, or Prisma cannot find `prisma/schema.prisma`.
-* **Fix:** Rebuild the API image and run Prisma from the workspace root with the
+
+- **Symptom:** The temporary migration container cannot find `pnpm`, or Prisma cannot find `prisma/schema.prisma`.
+- **Fix:** Rebuild the API image and run Prisma from the workspace root with the
   explicit pnpm entrypoint:
   ```bash
   set -a
@@ -769,12 +845,14 @@ docker compose -f docker-compose.prod.yml logs -f --tail=100 worker
   ```
 
 ### 13.6 WebSocket Connection Drops (Socket.IO)
-* **Symptom:** Socket.IO fails to connect or repeatedly falls back to long-polling.
-* **Fix:** Ensure Nginx configuration includes `proxy_set_header Upgrade $http_upgrade;` and `proxy_set_header Connection "upgrade";` with read and send timeouts set to `300s`.
+
+- **Symptom:** Socket.IO fails to connect or repeatedly falls back to long-polling.
+- **Fix:** Ensure Nginx configuration includes `proxy_set_header Upgrade $http_upgrade;` and `proxy_set_header Connection "upgrade";` with read and send timeouts set to `300s`.
 
 ### 13.7 WhatsApp Session Disconnects
-* **Symptom:** QR code pairing drops after phone screen lock.
-* **Fix:** The dedicated `whatsapp-worker` runs an automatic reconnect loop with exponential backoff. Check logs:
+
+- **Symptom:** QR code pairing drops after phone screen lock.
+- **Fix:** The dedicated `whatsapp-worker` runs an automatic reconnect loop with exponential backoff. Check logs:
   ```bash
   docker compose -f docker-compose.prod.yml logs -f whatsapp-worker
   ```

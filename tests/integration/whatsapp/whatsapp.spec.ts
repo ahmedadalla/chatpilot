@@ -193,7 +193,11 @@ test('WhatsApp 12: Hybrid branch-routing rule (Q-REQ-5): explicit mapping, 1 bra
   const companyActiveBranchesMulti = ['branch-cairo', 'branch-alex'];
   const conversationBranch = null; // Customer hasn't selected yet
   const requiresSelection = companyActiveBranchesMulti.length > 1 && !conversationBranch;
-  assert.strictEqual(requiresSelection, true, 'Multiple branches requires customer selection before ordering');
+  assert.strictEqual(
+    requiresSelection,
+    true,
+    'Multiple branches requires customer selection before ordering',
+  );
 });
 
 test('WhatsApp 13: Regular WhatsApp QR adapter lifecycle: wizard selectable, risk acknowledgement captured, pairing payload generated', () => {
@@ -207,7 +211,11 @@ test('WhatsApp 13: Regular WhatsApp QR adapter lifecycle: wizard selectable, ris
   assert.strictEqual(connectionPayload.provider, WhatsAppProviderType.REGULAR_QR_PAIRING);
 
   // 2. Risk acknowledgement captured
-  assert.strictEqual(connectionPayload.riskAcknowledged, true, 'Customer risk acknowledgement captured');
+  assert.strictEqual(
+    connectionPayload.riskAcknowledged,
+    true,
+    'Customer risk acknowledgement captured',
+  );
 
   // 3. Pairing payload generates pairing code and QR data URI
   const pairingResult = {

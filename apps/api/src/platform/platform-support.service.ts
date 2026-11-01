@@ -4,11 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import {
-  PrismaService,
-  TenantScopeService,
-  InteractiveAuthContext,
-} from '@chatpilot/database';
+import { PrismaService, TenantScopeService, InteractiveAuthContext } from '@chatpilot/database';
 import { Role } from '@chatpilot/contracts';
 
 @Injectable()
@@ -68,7 +64,9 @@ export class PlatformSupportService {
     }
 
     if (!auditReason || auditReason.trim() === '') {
-      throw new BadRequestException('A valid audit reason is required for platform support inspection');
+      throw new BadRequestException(
+        'A valid audit reason is required for platform support inspection',
+      );
     }
 
     return this.tenantScopeService.runInPlatformSupportScope(

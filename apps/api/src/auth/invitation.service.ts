@@ -34,7 +34,9 @@ export class InvitationService {
   /**
    * Enforces grantor allowlists and creates an invitation record (AUTHORIZATION_MODEL.md §3.6)
    */
-  async createInvitation(params: CreateInvitationParams): Promise<{ invitationId: string; rawToken: string }> {
+  async createInvitation(
+    params: CreateInvitationParams,
+  ): Promise<{ invitationId: string; rawToken: string }> {
     const { callerRole, callerCompanyId, callerBranchId, email, role, branchId } = params;
     const normalizedEmail = email.toLowerCase().trim();
 
@@ -63,7 +65,9 @@ export class InvitationService {
         throw new ForbiddenException(`Branch Manager cannot grant role ${role}`);
       }
       if (!branchId || branchId !== callerBranchId) {
-        throw new ForbiddenException('Branch Manager can invite staff only to their own assigned branch');
+        throw new ForbiddenException(
+          'Branch Manager can invite staff only to their own assigned branch',
+        );
       }
     } else {
       throw new ForbiddenException('Caller role is not authorized to send invitations');
@@ -159,7 +163,10 @@ export class InvitationService {
 
       // First admin company activation rule:
       // If company is in INITIATED status and first admin accepts, transition Company to ACTIVE
-      if (invitation.company.status === CompanyStatus.INITIATED && invitation.role === Role.COMPANY_ADMIN) {
+      if (
+        invitation.company.status === CompanyStatus.INITIATED &&
+        invitation.role === Role.COMPANY_ADMIN
+      ) {
         await tx.company.update({
           where: { id: invitation.companyId },
           data: { status: CompanyStatus.ACTIVE },

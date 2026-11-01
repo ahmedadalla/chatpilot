@@ -49,7 +49,11 @@ test('Auth 2: Login bad password returns identical 401 to non-existent user', as
   assert.strictEqual(dummyCalled, true, 'Dummy password verification executed');
 
   const errorMsg = 'Invalid email or password';
-  assert.strictEqual(errorMsg, 'Invalid email or password', 'Uniform 401 error message without username leakage');
+  assert.strictEqual(
+    errorMsg,
+    'Invalid email or password',
+    'Uniform 401 error message without username leakage',
+  );
 });
 
 test('Auth 3: Deactivated user login returns 401', () => {
@@ -61,7 +65,11 @@ test('Auth 3: Deactivated user login returns 401', () => {
 
 test('Auth 4: Suspended company login returns 401', () => {
   const company = { status: CompanyStatus.SUSPENDED };
-  assert.strictEqual(company.status !== CompanyStatus.ACTIVE, true, 'Suspended company login is rejected');
+  assert.strictEqual(
+    company.status !== CompanyStatus.ACTIVE,
+    true,
+    'Suspended company login is rejected',
+  );
 });
 
 test('Auth 5: Refresh token CAS rotation issues new pair, invalidates old token', () => {
@@ -111,7 +119,11 @@ test('Auth 9: Expired password reset token returns 401', () => {
 
 test('Auth 10: Super Admin login without valid TOTP or recovery code returns 403', () => {
   const setup = totpService.generateSecret('admin@chatpilot.io');
-  assert.strictEqual(setup.recoveryCodes.length, 10, 'Must generate exactly 10 recovery codes (D-19)');
+  assert.strictEqual(
+    setup.recoveryCodes.length,
+    10,
+    'Must generate exactly 10 recovery codes (D-19)',
+  );
 
   // Invalid 6-digit code fails
   const isValid = totpService.verifyToken(setup.secret, '000000');
@@ -121,7 +133,11 @@ test('Auth 10: Super Admin login without valid TOTP or recovery code returns 403
 test('Auth 11: Capability guard: KITCHEN role attempting company:create returns 403', () => {
   const kitchenCaps = ROLE_CAPABILITIES[Role.KITCHEN];
   assert.ok(kitchenCaps);
-  assert.strictEqual(kitchenCaps.has('company:create'), false, 'Kitchen has no company:create capability');
+  assert.strictEqual(
+    kitchenCaps.has('company:create'),
+    false,
+    'Kitchen has no company:create capability',
+  );
 });
 
 test('Auth 12: Scope guard: BRANCH_MANAGER accessing other company order returns 404', () => {

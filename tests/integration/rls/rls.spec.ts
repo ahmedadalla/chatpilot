@@ -73,7 +73,10 @@ test('RLS 13: Empty or null UUID context fails closed without SQL cast errors', 
 });
 
 test('RLS 14: Preauth functions allow only narrow lookups and reject writes', async () => {
-  assert.ok(true, 'lookup_user_by_email, lookup_invitation, and lookup_whatsapp functions verified');
+  assert.ok(
+    true,
+    'lookup_user_by_email, lookup_invitation, and lookup_whatsapp functions verified',
+  );
 });
 
 test('RLS 15: Ordinary app_set_scope strictly rejects platform scope', async () => {
@@ -145,5 +148,9 @@ test('RLS 18: Super Admin self-auth lifecycle executes under scope=user without 
     },
   );
 
-  assert.strictEqual(executed, true, 'Super Admin self-auth ran under user scope without platform escalation');
+  assert.strictEqual(
+    executed,
+    true,
+    'Super Admin self-auth ran under user scope without platform escalation',
+  );
 });

@@ -51,7 +51,9 @@ export class AnalyticsAggregateWorker {
         const totalOrders = orders.length;
         const deliveredOrders = orders.filter((o) => o.status === OrderStatus.DELIVERED).length;
         const cancelledOrders = orders.filter((o) => o.status === OrderStatus.CANCELLED).length;
-        const failedDeliveryOrders = orders.filter((o) => o.status === OrderStatus.FAILED_DELIVERY).length;
+        const failedDeliveryOrders = orders.filter(
+          (o) => o.status === OrderStatus.FAILED_DELIVERY,
+        ).length;
 
         const deliveredOrdersList = orders.filter((o) => o.status === OrderStatus.DELIVERED);
         const gmvTotal = deliveredOrdersList.reduce((sum, o) => sum + Number(o.total), 0);

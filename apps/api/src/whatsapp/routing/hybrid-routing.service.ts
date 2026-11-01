@@ -87,7 +87,9 @@ export class HybridRoutingService {
     });
 
     if (!branch) {
-      throw new BadRequestException('Invalid branch selection: Branch is not active or belongs to another company');
+      throw new BadRequestException(
+        'Invalid branch selection: Branch is not active or belongs to another company',
+      );
     }
 
     await this.prisma.conversation.update({

@@ -39,7 +39,9 @@ export class AiOrchestratorService {
    * Extracts confirmation token from customer text (e.g. "CONFIRM-A1B2C3D" or "A1B2C3D")
    */
   extractConfirmToken(text: string): string | null {
-    const match = text.toUpperCase().match(/(?:CONFIRM[-\s]?)?([23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{7})/);
+    const match = text
+      .toUpperCase()
+      .match(/(?:CONFIRM[-\s]?)?([23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{7})/);
     return match && match[1] ? match[1] : null;
   }
 }

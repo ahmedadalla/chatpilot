@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService, InteractiveAuthContext } from '@chatpilot/database';
 import {
   OrderStatus,
@@ -32,11 +28,7 @@ export class OrderBoardService {
         companyId: callerCtx.companyId!,
         branchId,
         status: {
-          in: [
-            OrderStatus.PENDING,
-            OrderStatus.ACCEPTED,
-            OrderStatus.IN_PREPARATION,
-          ],
+          in: [OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.IN_PREPARATION],
         },
       },
       include: {
@@ -76,10 +68,7 @@ export class OrderBoardService {
         companyId: callerCtx.companyId!,
         branchId,
         status: {
-          in: [
-            OrderStatus.READY_FOR_DELIVERY,
-            OrderStatus.OUT_FOR_DELIVERY,
-          ],
+          in: [OrderStatus.READY_FOR_DELIVERY, OrderStatus.OUT_FOR_DELIVERY],
         },
       },
       orderBy: { createdAt: 'asc' },

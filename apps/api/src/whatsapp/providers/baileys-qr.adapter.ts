@@ -1,14 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import {
-  WhatsAppProvider,
-  MessageContent,
-  StatusEvent,
-} from './whatsapp-provider.interface';
-import {
-  SendReceipt,
-  PairingHandleResponse,
-  WhatsAppConnectionStatus,
-} from '@chatpilot/contracts';
+import { WhatsAppProvider, MessageContent, StatusEvent } from './whatsapp-provider.interface';
+import { SendReceipt, PairingHandleResponse, WhatsAppConnectionStatus } from '@chatpilot/contracts';
 import { randomBytes, randomUUID } from 'node:crypto';
 
 @Injectable()

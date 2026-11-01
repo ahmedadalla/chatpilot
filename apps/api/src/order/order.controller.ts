@@ -35,10 +35,7 @@ export class OrderController {
 
   @Post()
   @RequireCapabilities('orders:create')
-  async createOrder(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Body() dto: CreateOrderDto,
-  ) {
+  async createOrder(@CurrentUser() user: InteractiveAuthContext, @Body() dto: CreateOrderDto) {
     return this.workflowService.createOrder(user, dto);
   }
 
@@ -79,10 +76,7 @@ export class OrderController {
   @Post(':id/accept')
   @HttpCode(HttpStatus.OK)
   @RequireCapabilities('orders:transition:accept')
-  async accept(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') orderId: string,
-  ) {
+  async accept(@CurrentUser() user: InteractiveAuthContext, @Param('id') orderId: string) {
     return this.workflowService.accept(user, orderId);
   }
 
@@ -110,30 +104,21 @@ export class OrderController {
   @Post(':id/mark-ready')
   @HttpCode(HttpStatus.OK)
   @RequireCapabilities('orders:transition:ready')
-  async markReady(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') orderId: string,
-  ) {
+  async markReady(@CurrentUser() user: InteractiveAuthContext, @Param('id') orderId: string) {
     return this.workflowService.markReady(user, orderId);
   }
 
   @Post(':id/start-delivery')
   @HttpCode(HttpStatus.OK)
   @RequireCapabilities('orders:transition:start-delivery')
-  async startDelivery(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') orderId: string,
-  ) {
+  async startDelivery(@CurrentUser() user: InteractiveAuthContext, @Param('id') orderId: string) {
     return this.workflowService.startDelivery(user, orderId);
   }
 
   @Post(':id/mark-delivered')
   @HttpCode(HttpStatus.OK)
   @RequireCapabilities('orders:transition:complete')
-  async markDelivered(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') orderId: string,
-  ) {
+  async markDelivered(@CurrentUser() user: InteractiveAuthContext, @Param('id') orderId: string) {
     return this.workflowService.markDelivered(user, orderId);
   }
 

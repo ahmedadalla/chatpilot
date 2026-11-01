@@ -21,7 +21,11 @@ test('Socket 1: Client join request is dropped and no unauthorized room is joine
     clientRooms.add(attemptedRoom);
   }
 
-  assert.strictEqual(clientRooms.has(attemptedRoom), false, 'Client-emitted join request is ignored');
+  assert.strictEqual(
+    clientRooms.has(attemptedRoom),
+    false,
+    'Client-emitted join request is ignored',
+  );
   assert.strictEqual(clientRooms.size, 1);
 });
 
@@ -29,10 +33,7 @@ test('Socket 2: KITCHEN socket receives order:status_changed for own branch, not
   const ownBranchRoom = 'co:company-1:br:branch-1:kitchen';
   const otherBranchRoom = 'co:company-1:br:branch-2:kitchen';
 
-  const kitchenSocketRooms = new Set<string>([
-    'co:company-1:br:branch-1',
-    ownBranchRoom,
-  ]);
+  const kitchenSocketRooms = new Set<string>(['co:company-1:br:branch-1', ownBranchRoom]);
 
   const eventForBranch1TargetRooms = ['co:company-1:br:branch-1', ownBranchRoom];
   const eventForBranch2TargetRooms = ['co:company-1:br:branch-2', otherBranchRoom];
@@ -42,7 +43,11 @@ test('Socket 2: KITCHEN socket receives order:status_changed for own branch, not
   const receivesBranch2Event = eventForBranch2TargetRooms.some((r) => kitchenSocketRooms.has(r));
 
   assert.strictEqual(receivesBranch1Event, true, 'Kitchen socket receives own branch order event');
-  assert.strictEqual(receivesBranch2Event, false, 'Kitchen socket does not receive other branch order event');
+  assert.strictEqual(
+    receivesBranch2Event,
+    false,
+    'Kitchen socket does not receive other branch order event',
+  );
 });
 
 test('Socket 3: COMPANY_ADMIN socket joins all branch rooms of their company', () => {
@@ -59,7 +64,11 @@ test('Socket 3: COMPANY_ADMIN socket joins all branch rooms of their company', (
   assert.strictEqual(adminRooms.has('co:company-1:br:branch-1'), true);
   assert.strictEqual(adminRooms.has('co:company-1:br:branch-2'), true);
   assert.strictEqual(adminRooms.has('co:company-1:br:branch-3'), true);
-  assert.strictEqual(adminRooms.has('co:company-2:br:branch-1'), false, 'Cannot join other company room');
+  assert.strictEqual(
+    adminRooms.has('co:company-2:br:branch-1'),
+    false,
+    'Cannot join other company room',
+  );
 });
 
 test('Socket 4: Session revoked via Redis disconnects socket within 1s', () => {
@@ -84,7 +93,11 @@ test('Socket 5: Stale JWT ver re-check disconnects socket with code 4003', () =>
     disconnectCode = 4003; // Custom WebSocket disconnect code for stale permissions
   }
 
-  assert.strictEqual(disconnectCode, 4003, 'Socket disconnected with code 4003 on stale permissions');
+  assert.strictEqual(
+    disconnectCode,
+    4003,
+    'Socket disconnected with code 4003 on stale permissions',
+  );
 });
 
 test('Socket 6: One-time handshake token is single-use; second attempt returns 401', () => {

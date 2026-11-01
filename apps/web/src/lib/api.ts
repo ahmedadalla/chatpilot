@@ -2,9 +2,7 @@ import { getAccessToken, refreshAccessToken, clearAuth } from './auth';
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === 'production'
-    ? 'https://api.ahmedelnwawy.me'
-    : 'http://localhost:3001');
+  (process.env.NODE_ENV === 'production' ? 'https://api.ahmedelnwawy.me' : 'http://localhost:3001');
 
 export class ApiError extends Error {
   constructor(
@@ -81,5 +79,4 @@ export const apiPut = <T>(path: string, body: unknown) =>
     body: JSON.stringify(body),
   });
 
-export const apiDelete = <T = void>(path: string) =>
-  apiRequest<T>(path, { method: 'DELETE' });
+export const apiDelete = <T = void>(path: string) => apiRequest<T>(path, { method: 'DELETE' });

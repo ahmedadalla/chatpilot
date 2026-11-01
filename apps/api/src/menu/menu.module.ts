@@ -9,16 +9,7 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [AuthModule],
   controllers: [MenuController],
-  providers: [
-    MenuService,
-    BranchAvailabilityService,
-    AvailabilityResolutionService,
-    PrismaService,
-  ],
-  exports: [
-    MenuService,
-    BranchAvailabilityService,
-    AvailabilityResolutionService,
-  ],
+  providers: [MenuService, BranchAvailabilityService, AvailabilityResolutionService, PrismaService],
+  exports: [MenuService, BranchAvailabilityService, AvailabilityResolutionService],
 })
 export class MenuModule {}

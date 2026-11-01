@@ -110,5 +110,4 @@ export const SubscriptionStatus = {
   CANCELED: 'CANCELED',
   SUSPENDED: 'SUSPENDED',
 } as const;
-export type SubscriptionStatus =
-  (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
+export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];

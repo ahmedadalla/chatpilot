@@ -18,14 +18,11 @@ export class MagicBytesValidator {
     const mime = declaredMimeType.toLowerCase().trim();
 
     // 1. PNG: 89 50 4E 47 0D 0A 1A 0A
-    if (
-      buffer[0] === 0x89 &&
-      buffer[1] === 0x50 &&
-      buffer[2] === 0x4e &&
-      buffer[3] === 0x47
-    ) {
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
       if (mime !== 'image/png' && mime !== 'application/octet-stream') {
-        throw new UnsupportedMediaTypeException(`Declared MIME "${declaredMimeType}" does not match detected PNG signature`);
+        throw new UnsupportedMediaTypeException(
+          `Declared MIME "${declaredMimeType}" does not match detected PNG signature`,
+        );
       }
       return { mimeType: 'image/png', extension: 'png' };
     }
@@ -33,7 +30,9 @@ export class MagicBytesValidator {
     // 2. JPEG: FF D8 FF
     if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
       if (mime !== 'image/jpeg' && mime !== 'image/jpg' && mime !== 'application/octet-stream') {
-        throw new UnsupportedMediaTypeException(`Declared MIME "${declaredMimeType}" does not match detected JPEG signature`);
+        throw new UnsupportedMediaTypeException(
+          `Declared MIME "${declaredMimeType}" does not match detected JPEG signature`,
+        );
       }
       return { mimeType: 'image/jpeg', extension: 'jpg' };
     }
@@ -51,20 +50,19 @@ export class MagicBytesValidator {
       buffer[11] === 0x50
     ) {
       if (mime !== 'image/webp' && mime !== 'application/octet-stream') {
-        throw new UnsupportedMediaTypeException(`Declared MIME "${declaredMimeType}" does not match detected WebP signature`);
+        throw new UnsupportedMediaTypeException(
+          `Declared MIME "${declaredMimeType}" does not match detected WebP signature`,
+        );
       }
       return { mimeType: 'image/webp', extension: 'webp' };
     }
 
     // 4. PDF: 25 50 44 46 (%PDF)
-    if (
-      buffer[0] === 0x25 &&
-      buffer[1] === 0x50 &&
-      buffer[2] === 0x44 &&
-      buffer[3] === 0x46
-    ) {
+    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
       if (mime !== 'application/pdf' && mime !== 'application/octet-stream') {
-        throw new UnsupportedMediaTypeException(`Declared MIME "${declaredMimeType}" does not match detected PDF signature`);
+        throw new UnsupportedMediaTypeException(
+          `Declared MIME "${declaredMimeType}" does not match detected PDF signature`,
+        );
       }
       return { mimeType: 'application/pdf', extension: 'pdf' };
     }

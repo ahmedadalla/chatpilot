@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from './prisma.service';
-import {
-  ScopedContext,
-  InteractiveAuthContext,
-  PlatformSupportContext,
-} from './context';
+import { ScopedContext, InteractiveAuthContext, PlatformSupportContext } from './context';
 import { InvalidTenantContextException } from './exceptions';
 import { Role } from '@chatpilot/contracts';
 
@@ -24,7 +20,7 @@ export class TenantScopeService {
     // 1. Invariant: Ordinary scope setter strictly rejects 'platform' scope (Gate B)
     if (ctx.scope === 'platform') {
       throw new InvalidTenantContextException(
-        "Platform scope cannot be requested via ordinary runInScope. Use PlatformSupportService.",
+        'Platform scope cannot be requested via ordinary runInScope. Use PlatformSupportService.',
       );
     }
 
@@ -37,11 +33,7 @@ export class TenantScopeService {
             `User company mismatch: User (${authCtx.userId}) of company (${authCtx.userCompanyId}) attempted to access company (${authCtx.companyId})`,
           );
         }
-        if (
-          authCtx.branchId &&
-          authCtx.userBranchId &&
-          authCtx.userBranchId !== authCtx.branchId
-        ) {
+        if (authCtx.branchId && authCtx.userBranchId && authCtx.userBranchId !== authCtx.branchId) {
           throw new InvalidTenantContextException(
             `User branch mismatch: User (${authCtx.userId}) assigned to branch (${authCtx.userBranchId}) attempted to access branch (${authCtx.branchId})`,
           );

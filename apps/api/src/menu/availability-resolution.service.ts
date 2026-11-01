@@ -1,12 +1,6 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@chatpilot/database';
-import {
-  ResolvedMenuItemDto,
-  ResolvedMenuCategoryDto,
-} from '@chatpilot/contracts';
+import { ResolvedMenuItemDto, ResolvedMenuCategoryDto } from '@chatpilot/contracts';
 
 @Injectable()
 export class AvailabilityResolutionService {
@@ -78,10 +72,7 @@ export class AvailabilityResolutionService {
   /**
    * Resolves the entire active branch menu for digital menus and AI ordering.
    */
-  async resolveBranchMenu(
-    companyId: string,
-    branchId: string,
-  ): Promise<ResolvedMenuCategoryDto[]> {
+  async resolveBranchMenu(companyId: string, branchId: string): Promise<ResolvedMenuCategoryDto[]> {
     const branch = await this.prisma.branch.findFirst({
       where: { id: branchId, companyId },
       include: { company: { include: { settings: true } } },

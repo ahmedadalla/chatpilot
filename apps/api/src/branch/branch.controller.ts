@@ -17,11 +17,7 @@ import { ScopeGuard } from '../auth/guards/scope.guard';
 import { RequireCapabilities } from '../auth/decorators/require-caps.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { InteractiveAuthContext } from '@chatpilot/database';
-import {
-  CreateBranchDto,
-  UpdateBranchSettingsDto,
-  UpdateTimezoneDto,
-} from '@chatpilot/contracts';
+import { CreateBranchDto, UpdateBranchSettingsDto, UpdateTimezoneDto } from '@chatpilot/contracts';
 
 @Controller('branches')
 @UseGuards(JwtAuthGuard, CapabilitiesGuard, ScopeGuard)
@@ -30,10 +26,7 @@ export class BranchController {
 
   @Post()
   @RequireCapabilities('branch:create/deactivate')
-  async createBranch(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Body() dto: CreateBranchDto,
-  ) {
+  async createBranch(@CurrentUser() user: InteractiveAuthContext, @Body() dto: CreateBranchDto) {
     return this.branchService.createBranch(user, dto);
   }
 
@@ -45,10 +38,7 @@ export class BranchController {
 
   @Get(':id')
   @RequireCapabilities('company:read')
-  async getBranch(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') branchId: string,
-  ) {
+  async getBranch(@CurrentUser() user: InteractiveAuthContext, @Param('id') branchId: string) {
     return this.branchService.getBranch(user, branchId);
   }
 

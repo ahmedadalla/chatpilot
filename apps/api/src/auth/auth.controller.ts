@@ -42,10 +42,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() dto: LoginDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(dto);
 
     // Set refresh token in HttpOnly SameSite=Lax Secure cookie
@@ -131,11 +128,7 @@ export class AuthController {
     @Body() dto: AcceptInvitationDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.invitationService.acceptInvitation(
-      dto.token,
-      dto.password,
-      dto.name,
-    );
+    const result = await this.invitationService.acceptInvitation(dto.token, dto.password, dto.name);
 
     res.cookie('cp_rft', result.tokens.refreshToken, {
       httpOnly: true,

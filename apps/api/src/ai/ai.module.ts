@@ -20,11 +20,6 @@ import { PrismaService } from '@chatpilot/database';
     PendingOrderService,
     PrismaService,
   ],
-  exports: [
-    AiOrchestratorService,
-    AiToolsService,
-    PendingOrderService,
-    GeminiAdapter,
-  ],
+  exports: [AiOrchestratorService, AiToolsService, PendingOrderService, GeminiAdapter],
 })
 export class AiModule {}

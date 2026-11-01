@@ -49,13 +49,14 @@ export async function login(credentials: LoginDto) {
     body: JSON.stringify(credentials),
   });
   const payload = (await response.json().catch(() => null)) as
-    | LoginResponse
-    | { message?: string | string[] }
-    | null;
+    LoginResponse | { message?: string | string[] } | null;
   if (!response.ok) {
-    const message = payload && 'message' in payload
-      ? Array.isArray(payload.message) ? payload.message.join(', ') : payload.message
-      : undefined;
+    const message =
+      payload && 'message' in payload
+        ? Array.isArray(payload.message)
+          ? payload.message.join(', ')
+          : payload.message
+        : undefined;
     throw new Error(message || 'تعذر تسجيل الدخول. تحقق من البيانات وحاول مرة أخرى.');
   }
   storeAuth(payload as LoginResponse);

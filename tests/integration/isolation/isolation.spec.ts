@@ -13,8 +13,13 @@ test('Isolation 16: Composite FK backstop prevents mismatched company/branch pai
   const childRow = { companyId: 'company-A', branchId: 'branch-belonging-to-company-B' };
   const validBranch = { companyId: 'company-B', id: 'branch-belonging-to-company-B' };
 
-  const matchesComposite = childRow.companyId === validBranch.companyId && childRow.branchId === validBranch.id;
-  assert.strictEqual(matchesComposite, false, 'Composite FK rejects cross-company branch reference');
+  const matchesComposite =
+    childRow.companyId === validBranch.companyId && childRow.branchId === validBranch.id;
+  assert.strictEqual(
+    matchesComposite,
+    false,
+    'Composite FK rejects cross-company branch reference',
+  );
 });
 
 test('Isolation 17: Non-platform user cannot invite or elevate to SUPER_ADMIN (403 Forbidden)', () => {
@@ -29,9 +34,21 @@ test('Isolation 18: Branch Manager cannot create or deactivate branches; can upd
   const bmCaps = ROLE_CAPABILITIES[Role.BRANCH_MANAGER];
   assert.ok(bmCaps);
 
-  assert.strictEqual(bmCaps.has('branch:create/deactivate'), false, 'Branch Manager has no branch create/deactivate capability');
-  assert.strictEqual(bmCaps.has('branch:settings:write'), true, 'Branch Manager has branch settings write capability');
-  assert.strictEqual(bmCaps.has('branch:edit'), true, 'Branch Manager has branch operational edit capability');
+  assert.strictEqual(
+    bmCaps.has('branch:create/deactivate'),
+    false,
+    'Branch Manager has no branch create/deactivate capability',
+  );
+  assert.strictEqual(
+    bmCaps.has('branch:settings:write'),
+    true,
+    'Branch Manager has branch settings write capability',
+  );
+  assert.strictEqual(
+    bmCaps.has('branch:edit'),
+    true,
+    'Branch Manager has branch operational edit capability',
+  );
 });
 
 // --- Phase P3 Isolation & Lifecycle Cases ---
@@ -47,7 +64,8 @@ test('Isolation 19 (P3.1): Company A BRANCH_MANAGER cannot read Company B branch
     id: 'branch-B1',
   };
 
-  const isOutOfScope = managerCtx.companyId !== targetBranch.companyId || managerCtx.branchId !== targetBranch.id;
+  const isOutOfScope =
+    managerCtx.companyId !== targetBranch.companyId || managerCtx.branchId !== targetBranch.id;
   assert.strictEqual(isOutOfScope, true);
 
   // Non-leaking error contract: Return 404 Not Found, never 403
@@ -76,8 +94,16 @@ test('Isolation 21 (P3.3): Suspending Company A revokes all Company A sessions; 
     revokedAt: null,
   };
 
-  assert.strictEqual(sessionCompanyAUser.revokedAt !== null, true, 'Company A user session is revoked');
-  assert.strictEqual(sessionCompanyBUser.revokedAt === null, true, 'Company B user session remains active');
+  assert.strictEqual(
+    sessionCompanyAUser.revokedAt !== null,
+    true,
+    'Company A user session is revoked',
+  );
+  assert.strictEqual(
+    sessionCompanyBUser.revokedAt === null,
+    true,
+    'Company B user session remains active',
+  );
 });
 
 test('Isolation 22 (P3.4): SUPER_ADMIN platform support cross-tenant read writes AuditLog in same transaction', () => {
@@ -144,7 +170,11 @@ test('Isolation 25 (P3.7): Operational settings update: BRANCH_MANAGER updates a
   const isCrossBranch = managerAssignedBranchId !== targetBranchId;
   assert.strictEqual(isCrossBranch, true);
   const status = isCrossBranch ? 404 : 200;
-  assert.strictEqual(status, 404, 'Branch Manager attempting to update settings of another branch receives 404');
+  assert.strictEqual(
+    status,
+    404,
+    'Branch Manager attempting to update settings of another branch receives 404',
+  );
 });
 
 // --- Phase P4 Menu & File Isolation Cases ---
@@ -166,7 +196,11 @@ test('Isolation 27 (P4.2): BRANCH_MANAGER cannot write menu items (attempting me
 
   // Branch Manager can read menu but CANNOT write menu
   assert.strictEqual(bmCaps.has('menu:read'), true, 'Branch Manager has menu:read');
-  assert.strictEqual(bmCaps.has('menu:write'), false, 'Branch Manager has no menu:write capability');
+  assert.strictEqual(
+    bmCaps.has('menu:write'),
+    false,
+    'Branch Manager has no menu:write capability',
+  );
 });
 
 test('Isolation 28 (P4.3): File URL generation: DELIVERY role requesting kb-document file URL returns 403 Forbidden', () => {
@@ -179,7 +213,11 @@ test('Isolation 28 (P4.3): File URL generation: DELIVERY role requesting kb-docu
 
   const requiredCap = 'kb:write/read';
   const isAuthorized = deliveryCaps.has(requiredCap);
-  assert.strictEqual(isAuthorized, false, 'File presigned URL generation denied with 403 for unauthorized purpose');
+  assert.strictEqual(
+    isAuthorized,
+    false,
+    'File presigned URL generation denied with 403 for unauthorized purpose',
+  );
 });
 
 test('Isolation 29 (P4.4): Upload with wrong magic bytes returns 415 Unsupported Media Type', () => {
@@ -236,8 +274,18 @@ test('Isolation 31 (P7.1): Cross-company isolation: Company A retrieval query ne
   const companyBId = 'co-alex';
 
   const allChunks = [
-    { id: 'chunk-1', companyId: companyAId, content: 'Cairo delivery hours: 10am to 12am', vector: [0.1, 0.2, 0.3] },
-    { id: 'chunk-2', companyId: companyBId, content: 'Alexandria secret grill sauce recipe', vector: [0.1, 0.2, 0.3] },
+    {
+      id: 'chunk-1',
+      companyId: companyAId,
+      content: 'Cairo delivery hours: 10am to 12am',
+      vector: [0.1, 0.2, 0.3],
+    },
+    {
+      id: 'chunk-2',
+      companyId: companyBId,
+      content: 'Alexandria secret grill sauce recipe',
+      vector: [0.1, 0.2, 0.3],
+    },
   ];
 
   // Invariant: compound WHERE company_id = companyAId filter is applied before vector ranking
@@ -255,8 +303,18 @@ test('Isolation 32 (P7.2): Branch hierarchy: Branch user sees company-wide docs 
 
   const documents = [
     { id: 'doc-1', companyId: userCompanyId, branchId: null, title: 'Company General Policy' },
-    { id: 'doc-2', companyId: userCompanyId, branchId: 'branch-maadi', title: 'Maadi Local Delivery Zones' },
-    { id: 'doc-3', companyId: userCompanyId, branchId: 'branch-nasr-city', title: 'Nasr City Local Delivery Zones' },
+    {
+      id: 'doc-2',
+      companyId: userCompanyId,
+      branchId: 'branch-maadi',
+      title: 'Maadi Local Delivery Zones',
+    },
+    {
+      id: 'doc-3',
+      companyId: userCompanyId,
+      branchId: 'branch-nasr-city',
+      title: 'Nasr City Local Delivery Zones',
+    },
   ];
 
   // Branch user visibility logic: companyId match AND (branchId IS NULL OR branchId = userBranchId)
@@ -265,7 +323,11 @@ test('Isolation 32 (P7.2): Branch hierarchy: Branch user sees company-wide docs 
   );
 
   assert.strictEqual(visibleDocs.length, 2);
-  assert.strictEqual(visibleDocs.some((d) => d.branchId === 'branch-nasr-city'), false, 'Other branch docs are excluded');
+  assert.strictEqual(
+    visibleDocs.some((d) => d.branchId === 'branch-nasr-city'),
+    false,
+    'Other branch docs are excluded',
+  );
 });
 
 test('Isolation 33 (P7.3): Cascade delete: Deleting document cascade removes all its chunks and vector embeddings', () => {
@@ -286,7 +348,10 @@ test('Isolation 34 (P7.4): Filtered ANN retrieval accuracy: Recall@5 >= 95% agai
   let matchingRecallCount = 98; // 98% recall
 
   const recallRate = matchingRecallCount / totalQueries;
-  assert.ok(recallRate >= 0.95, `Recall@5 rate (${recallRate * 100}%) meets or exceeds 95% threshold`);
+  assert.ok(
+    recallRate >= 0.95,
+    `Recall@5 rate (${recallRate * 100}%) meets or exceeds 95% threshold`,
+  );
 });
 
 test('Isolation 35 (P7.5): Filtered ANN latency benchmark: p95 query latency < 50ms under load with tuned hnsw.ef_search', () => {
@@ -296,5 +361,3 @@ test('Isolation 35 (P7.5): Filtered ANN latency benchmark: p95 query latency < 5
 
   assert.ok(p95Latency < 50, `p95 latency (${p95Latency}ms) is well under 50ms requirement`);
 });
-
-
