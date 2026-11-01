@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getStoredUser } from '../lib/auth';
-import { apiGet, apiPost, ApiError } from '../lib/api';
+import { apiGet, apiPost, ApiError, API_BASE_URL } from '../lib/api';
+import { io } from 'socket.io-client';
 
 type BoardItem = {
   id: string;
@@ -72,7 +73,31 @@ export function OperationalBoard({ kind }: { kind: 'kitchen' | 'delivery' }) {
     }
     void load();
     const timer = window.setInterval(() => void load(), 30000);
-    return () => window.clearInterval(timer);
+    let socket: ReturnType<typeof io> | undefined;
+    let cancelled = false;
+    void apiPost<{ token: string }>('/api/v1/socket/token')
+      .then(({ token }) => {
+        if (cancelled) return;
+        socket = io(`${API_BASE_URL}/events`, {
+          query: { token },
+          transports: ['websocket', 'polling'],
+        });
+        const refresh = () => void load();
+        socket.on('order:new', refresh);
+        socket.on('order:status_changed', refresh);
+        socket.on('delivery:order_ready', refresh);
+        socket.on('connect_error', () => {
+          // REST polling remains the authoritative fallback.
+        });
+      })
+      .catch(() => {
+        // REST polling remains the authoritative fallback.
+      });
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      socket?.disconnect();
+    };
   }, [load]);
 
   const columns = useMemo(() => {

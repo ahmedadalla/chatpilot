@@ -11,6 +11,7 @@ export interface BaseTenantContext {
 
 export interface InteractiveAuthContext extends BaseTenantContext {
   userId: string;
+  sessionId?: string;
   role: Role;
   userCompanyId: string | null;
   userBranchId: string | null;

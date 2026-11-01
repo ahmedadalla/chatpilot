@@ -89,6 +89,7 @@ export class JwtAuthGuard implements CanActivate {
     const authContext: InteractiveAuthContext = {
       scope: user.role === Role.SUPER_ADMIN ? 'platform' : user.branchId ? 'branch' : 'company',
       userId: user.id,
+      sessionId: payload.sid,
       role: user.role,
       companyId: user.companyId,
       branchId: user.branchId,
