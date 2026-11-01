@@ -1,53 +1,46 @@
-import React from 'react';
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { AppShell } from '../../../../components/app-shell';
+import { apiGet, ApiError } from '../../../../lib/api';
+
+type Company = {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  branchCount: number;
+  userCount: number;
+  orderCount: number;
+  createdAt: string;
+};
 
 export default function PlatformCompaniesPage() {
-  return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            إدارة الشركات والمطاعم | Companies Directory
-          </h1>
-          <p className="text-sm text-slate-500">
-            نظرة عامة على الشركات المشتركة، الفروع، وخطط الاشتراكات (Super Admin Platform Support)
-          </p>
-        </div>
-      </div>
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-right text-sm">
-            <thead className="bg-slate-50 text-slate-700">
-              <tr>
-                <th className="px-4 py-3">اسم الشركة</th>
-                <th className="px-4 py-3">المعرف (Slug)</th>
-                <th className="px-4 py-3">الحالة</th>
-                <th className="px-4 py-3">عدد الفروع</th>
-                <th className="px-4 py-3">المستخدمين</th>
-                <th className="px-4 py-3">الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              <tr>
-                <td className="px-4 py-3 font-medium">تجربة مطعم القاهرة (Demo)</td>
-                <td className="px-4 py-3 text-slate-500">cairo-bistro</td>
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
-                    نشط (ACTIVE)
-                  </span>
-                </td>
-                <td className="px-4 py-3">2</td>
-                <td className="px-4 py-3">5</td>
-                <td className="px-4 py-3">
-                  <button className="text-xs text-blue-600 hover:underline">
-                    فحص الدعم المنصي (Audited Inspect)
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setCompanies(await apiGet<Company[]>('/api/v1/platform/companies'));
+    } catch (loadError) {
+      setError(loadError instanceof ApiError ? loadError.message : 'تعذر تحميل الشركات.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  return (
+    <AppShell title="الشركات والمنصة" description="نظرة عامة على العملاء والفروع والنشاط. كل فحص تفصيلي لمنشأة يسجل في سجل التدقيق.">
+      <div className="space-y-5">
+        {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>}
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {loading ? <p className="p-8 text-center text-slate-500">جارٍ تحميل الشركات...</p> : companies.length === 0 ? <p className="p-8 text-center text-slate-500">لا توجد شركات مسجلة بعد.</p> : <div className="overflow-x-auto"><table className="w-full text-right text-sm"><thead className="bg-slate-50 text-slate-600"><tr><th className="px-5 py-4">الشركة</th><th className="px-5 py-4">الحالة</th><th className="px-5 py-4">الفروع</th><th className="px-5 py-4">المستخدمون</th><th className="px-5 py-4">الطلبات</th><th className="px-5 py-4">تاريخ الإنشاء</th></tr></thead><tbody className="divide-y divide-slate-100">{companies.map((company) => <tr key={company.id}><td className="px-5 py-4"><p className="font-bold">{company.name}</p><p className="text-xs text-slate-400" dir="ltr">{company.slug}</p></td><td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-bold ${company.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : company.status === 'SUSPENDED' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{company.status}</span></td><td className="px-5 py-4">{company.branchCount}</td><td className="px-5 py-4">{company.userCount}</td><td className="px-5 py-4">{company.orderCount}</td><td className="px-5 py-4 text-slate-500" dir="ltr">{new Date(company.createdAt).toLocaleDateString('ar-EG')}</td></tr>)}</tbody></table></div>}
+        </section>
       </div>
-    </div>
+    </AppShell>
   );
 }
