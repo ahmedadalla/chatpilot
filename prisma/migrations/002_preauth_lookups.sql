@@ -1,16 +1,24 @@
 -- 002_preauth_lookups.sql
 -- Narrow, SELECT-only pre-authentication lookup functions (AUTHORIZATION_MODEL.md §5.4)
 
+DROP FUNCTION IF EXISTS lookup_user_by_email(text);
+
 CREATE OR REPLACE FUNCTION lookup_user_by_email(p_email text)
 RETURNS TABLE (
   id uuid,
   email text,
+  name text,
   password_hash text,
   role text,
   company_id uuid,
   branch_id uuid,
   is_active boolean,
-  permissions_version integer
+  deactivated_at timestamptz,
+  permissions_version integer,
+  totp_secret text,
+  totp_recovery_codes jsonb,
+  company_status text,
+  branch_is_active boolean
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -21,15 +29,22 @@ BEGIN
   SELECT
     u.id,
     u.email::text,
+    u.name::text,
     u."passwordHash"::text,
     u.role::text,
     u."companyId",
     u."branchId",
     u."isActive",
-    u."permissionsVersion"
+    u."deactivatedAt",
+    u."permissionsVersion",
+    u."totpSecret"::text,
+    u."totpRecoveryCodes",
+    c.status::text,
+    b."isActive"
   FROM users u
+  LEFT JOIN companies c ON c.id = u."companyId"
+  LEFT JOIN branches b ON b.id = u."branchId"
   WHERE lower(u.email) = lower(p_email)
-    AND u."isActive" = true
   LIMIT 1;
 END;
 $$;

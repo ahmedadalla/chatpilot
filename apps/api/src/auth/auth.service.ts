@@ -3,7 +3,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
-import { PrismaService } from '@chatpilot/database';
+import { PrismaService, TenantScopeService } from '@chatpilot/database';
 import { PasswordService } from './password.service';
 import { SessionService, IssuedSessionTokens } from './session.service';
 import { TotpService } from './totp.service';
@@ -32,6 +32,7 @@ export interface AuthenticateResult {
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly tenantScopeService: TenantScopeService,
     private readonly passwordService: PasswordService,
     private readonly sessionService: SessionService,
     private readonly totpService: TotpService,
@@ -49,18 +50,56 @@ export class AuthService {
     }
 
     // 1. Locate user record
-    const user = await this.prisma.user.findUnique({
-      where: { email: normalizedEmail },
-      include: {
-        company: true,
-        branch: true,
+    const user = await this.tenantScopeService.runInScope(
+      { scope: 'preauth' },
+      async (tx) => {
+        const rows = await tx.$queryRaw<PreauthUserRow[]>`
+          SELECT *
+          FROM lookup_user_by_email(${normalizedEmail})
+        `;
+        const row = rows[0];
+        if (!row) return null;
+
+        return {
+          id: row.id,
+          email: row.email,
+          name: row.name,
+          passwordHash: row.password_hash,
+          role: row.role as Role,
+          companyId: row.company_id,
+          branchId: row.branch_id,
+          isActive: row.is_active,
+          deactivatedAt: row.deactivated_at,
+          permissionsVersion: row.permissions_version,
+          totpSecret: row.totp_secret,
+          totpRecoveryCodes: row.totp_recovery_codes,
+          company: row.company_status ? { status: row.company_status as CompanyStatus } : null,
+          branch: row.branch_is_active === null ? null : { isActive: row.branch_is_active },
+        };
       },
-    });
+    );
 
     if (!user) {
       // Execute dummy password verification to eliminate timing side channels
       await this.passwordService.dummyVerify();
       throw new UnauthorizedException('Invalid email or password');
+    }
+
+    interface PreauthUserRow {
+      id: string;
+      email: string;
+      name: string;
+      password_hash: string;
+      role: string;
+      company_id: string | null;
+      branch_id: string | null;
+      is_active: boolean;
+      deactivated_at: Date | null;
+      permissions_version: number;
+      totp_secret: string | null;
+      totp_recovery_codes: unknown;
+      company_status: string | null;
+      branch_is_active: boolean | null;
     }
 
     // 2. Constant-time password verification

@@ -42,18 +42,27 @@ export class SessionService {
     const sessionExpiresAt = new Date(Date.now() + sessionTtlDays * 24 * 60 * 60 * 1000);
     const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    const session = await this.prisma.authSession.create({
-      data: {
-        userId,
-        expiresAt: sessionExpiresAt,
-        refreshTokens: {
-          create: {
-            userId,
-            tokenHash,
-            expiresAt: refreshExpiresAt,
+    const session = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT app_set_scope(
+        'user',
+        NULL::uuid,
+        NULL::uuid,
+        ${userId}::uuid
+      )`;
+
+      return tx.authSession.create({
+        data: {
+          userId,
+          expiresAt: sessionExpiresAt,
+          refreshTokens: {
+            create: {
+              userId,
+              tokenHash,
+              expiresAt: refreshExpiresAt,
+            },
           },
         },
-      },
+      });
     });
 
     const accessToken = this.tokenService.issueAccessToken(userId, session.id, permissionsVersion);
