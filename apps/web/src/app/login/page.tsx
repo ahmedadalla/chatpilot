@@ -125,6 +125,9 @@ export default function LoginPage() {
             >
               {isSubmitting ? 'جارٍ تسجيل الدخول...' : 'دخول إلى لوحة التحكم'}
             </button>
+            <a href="/reset-password" className="block text-center text-sm font-semibold text-blue-600 hover:underline">
+              نسيت كلمة المرور؟
+            </a>
           </form>
         </section>
       </div>

@@ -17,6 +17,37 @@ export class StaffService {
     private readonly permissionVersionService: PermissionVersionService,
   ) {}
 
+  async list(callerCtx: InteractiveAuthContext) {
+    if (!callerCtx.companyId) {
+      throw new ForbiddenException('Super Admin cannot list restaurant staff');
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        companyId: callerCtx.companyId,
+        ...(callerCtx.branchId ? { branchId: callerCtx.branchId } : {}),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        branchId: true,
+        isActive: true,
+        isVerified: true,
+        createdAt: true,
+        branch: { select: { name: true } },
+      },
+      orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
+    });
+
+    return users.map((user) => ({
+      ...user,
+      branchName: user.branch?.name ?? null,
+      branch: undefined,
+    }));
+  }
+
   /**
    * Invites a new staff member within caller's scope and according to grantor allowlists
    */
