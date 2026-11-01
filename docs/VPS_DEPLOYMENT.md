@@ -275,11 +275,11 @@ REFRESH_TOKEN_TTL=604800
 KMS_MASTER_KEY=YOUR_GENERATED_KMS_MASTER_KEY_HERE==
 
 # ------------------------------------------------------------------------------
-# S3 / Cloudflare R2 Object Storage
+# Amazon S3 Object Storage
 # ------------------------------------------------------------------------------
 S3_BUCKET=chatpilot-production-uploads
-S3_REGION=auto
-S3_ENDPOINT=https://your-account-id.r2.cloudflarestorage.com
+S3_REGION=eu-north-1
+S3_ENDPOINT=https://s3.eu-north-1.amazonaws.com
 S3_ACCESS_KEY_ID=YOUR_S3_ACCESS_KEY_ID
 S3_SECRET_ACCESS_KEY=YOUR_S3_SECRET_ACCESS_KEY
 
@@ -356,11 +356,23 @@ EOF
 ```
 
 ### 6.3 Deploy Prisma Schema Tables
-Run Prisma migrate deploy inside a temporary migration container:
+Load the migrator DSN into the shell without printing its value:
 ```bash
+set -a
+. ./.env.production
+set +a
+```
+
+Run Prisma schema synchronization inside a temporary migration container. The API
+image must be rebuilt from the current `compose/Dockerfile.api` first so that
+`pnpm` is available in the runner image:
+```bash
+docker compose -f docker-compose.prod.yml build api
+
 docker compose -f docker-compose.prod.yml run --rm \
+  --entrypoint /usr/local/bin/pnpm \
   -e DATABASE_URL="$DATABASE_URL_MIGRATOR" \
-  api pnpm --filter @chatpilot/database exec prisma db push --schema=prisma/schema.prisma
+  api exec prisma db push --schema=prisma/schema.prisma
 ```
 
 ### 6.4 Apply Row-Level Security & pgvector Extensions
@@ -402,6 +414,24 @@ All six containers must show status `Up` or `Up (healthy)`:
 * `chatpilot-whatsapp-worker` (Baileys on `127.0.0.1:3002`)
 * `chatpilot-web` (Next.js on `127.0.0.1:3000`)
 
+The production Compose file overrides the shared `PORT=3001` value for the web
+service with `PORT=3000`, matching the published web port:
+```yaml
+environment:
+  PORT: "3000"
+```
+
+The API healthcheck must use the IPv4 loopback address because the API listens on
+`0.0.0.0:3001` inside the container:
+```yaml
+test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001/healthz"]
+```
+If the API is running but reports `unhealthy`, inspect the healthcheck result:
+```bash
+docker inspect --format='{{json .State.Health}}' chatpilot-api
+docker compose -f docker-compose.prod.yml logs --tail=100 api
+```
+
 ---
 
 ## 8. Domain, Reverse Proxy, and HTTPS
@@ -416,34 +446,37 @@ exit # or sudo su
 apt-get install -y nginx certbot python3-certbot-nginx
 ```
 
-### 8.2 Create Nginx Virtual Host for Web Portal (`app.yourdomain.com`)
+### 8.2 Create Nginx Virtual Host for Web Portal (`app.ahmedelnwawy.me`)
 Create `/etc/nginx/sites-available/chatpilot-web.conf`:
 ```nginx
 server {
     listen 80;
-    server_name app.yourdomain.com;
+    listen [::]:80;
+    server_name app.ahmedelnwawy.me;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
-        proxy_read_timeout 60s;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
     }
 }
 ```
 
-### 8.3 Create Nginx Virtual Host for API & Socket.IO (`api.yourdomain.com`)
+### 8.3 Create Nginx Virtual Host for API & Socket.IO (`api.ahmedelnwawy.me`)
 Create `/etc/nginx/sites-available/chatpilot-api.conf`:
 ```nginx
 server {
     listen 80;
-    server_name api.yourdomain.com;
+    listen [::]:80;
+    server_name api.ahmedelnwawy.me;
 
     # Max upload limit for menu images and KB documents
     client_max_body_size 25M;
@@ -457,8 +490,8 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
     }
 }
 ```
@@ -466,8 +499,8 @@ server {
 ### 8.4 Enable Sites and Obtain Let's Encrypt Certificates
 ```bash
 # Enable virtual hosts
-ln -s /etc/nginx/sites-available/chatpilot-web.conf /etc/nginx/sites-enabled/
-ln -s /etc/nginx/sites-available/chatpilot-api.conf /etc/nginx/sites-enabled/
+ln -sfn /etc/nginx/sites-available/chatpilot-web.conf /etc/nginx/sites-enabled/chatpilot-web.conf
+ln -sfn /etc/nginx/sites-available/chatpilot-api.conf /etc/nginx/sites-enabled/chatpilot-api.conf
 
 # Test syntax
 nginx -t
@@ -477,11 +510,11 @@ systemctl reload nginx
 
 # Request automated certificates and configure HTTPS redirects
 certbot --nginx \
-  -d app.yourdomain.com \
-  -d api.yourdomain.com \
+  -d app.ahmedelnwawy.me \
+  -d api.ahmedelnwawy.me \
   --non-interactive \
   --agree-tos \
-  -m admin@yourdomain.com
+  -m admin@ahmedelnwawy.me
 ```
 
 ---
@@ -539,11 +572,17 @@ git fetch origin
 git checkout main
 git pull origin main
 
-# 3. Apply schema migrations if modified
-docker compose -f docker-compose.prod.yml run --rm api pnpm --filter @chatpilot/database exec prisma migrate deploy
-
-# 4. Rebuild images with layer caching
+# 3. Rebuild images with layer caching
 docker compose -f docker-compose.prod.yml build api worker whatsapp-worker web
+
+# 4. Apply the Prisma schema if it changed
+set -a
+. ./.env.production
+set +a
+docker compose -f docker-compose.prod.yml run --rm \
+  --entrypoint /usr/local/bin/pnpm \
+  -e DATABASE_URL="$DATABASE_URL_MIGRATOR" \
+  api exec prisma db push --schema=prisma/schema.prisma
 
 # 5. Rolling restart of containers
 docker compose -f docker-compose.prod.yml up -d --no-deps api
@@ -691,11 +730,45 @@ docker compose -f docker-compose.prod.yml logs -f --tail=100 worker
   ALTER ROLE chatpilot_app NOBYPASSRLS NOSUPERUSER;
   ```
 
-### 13.4 WebSocket Connection Drops (Socket.IO)
-* **Symptom:** Socket.IO fails to connect or repeatedly falls back to long-polling.
-* **Fix:** Ensure Nginx configuration includes `proxy_set_header Upgrade $http_upgrade;` and `proxy_set_header Connection "upgrade";` with read timeouts set to `86400s`.
+### 13.4 API or workers fail with `S3_ENDPOINT: Invalid url`
+* **Symptom:** `chatpilot-api`, `chatpilot-worker`, or `chatpilot-whatsapp-worker` exits or restarts with an invalid S3 endpoint.
+* **Cause:** `S3_ENDPOINT` is empty, contains a placeholder, or uses an Availability Zone such as `eu-north-1a` instead of the S3 region.
+* **Fix:** Set the bucket region, not the Availability Zone, and recreate all application services:
+  ```env
+  S3_BUCKET=chatpilot-production-uploads
+  S3_REGION=eu-north-1
+  S3_ENDPOINT=https://s3.eu-north-1.amazonaws.com
+  S3_ACCESS_KEY_ID=YOUR_IAM_ACCESS_KEY_ID
+  S3_SECRET_ACCESS_KEY=YOUR_IAM_SECRET_ACCESS_KEY
+  ```
+  ```bash
+  docker compose -f docker-compose.prod.yml up -d --force-recreate api worker whatsapp-worker web
+  docker compose -f docker-compose.prod.yml ps
+  ```
+  Use the endpoint for the actual bucket region. Never commit credentials or paste
+  them into logs, screenshots, or support requests. Rotate any credentials that
+  were exposed.
 
-### 13.5 WhatsApp Session Disconnects
+### 13.5 API migration command fails with `/app/pnpm` or missing schema
+* **Symptom:** The temporary migration container cannot find `pnpm`, or Prisma cannot find `prisma/schema.prisma`.
+* **Fix:** Rebuild the API image and run Prisma from the workspace root with the
+  explicit pnpm entrypoint:
+  ```bash
+  set -a
+  . ./.env.production
+  set +a
+  docker compose -f docker-compose.prod.yml build api
+  docker compose -f docker-compose.prod.yml run --rm \
+    --entrypoint /usr/local/bin/pnpm \
+    -e DATABASE_URL="$DATABASE_URL_MIGRATOR" \
+    api exec prisma db push --schema=prisma/schema.prisma
+  ```
+
+### 13.6 WebSocket Connection Drops (Socket.IO)
+* **Symptom:** Socket.IO fails to connect or repeatedly falls back to long-polling.
+* **Fix:** Ensure Nginx configuration includes `proxy_set_header Upgrade $http_upgrade;` and `proxy_set_header Connection "upgrade";` with read and send timeouts set to `300s`.
+
+### 13.7 WhatsApp Session Disconnects
 * **Symptom:** QR code pairing drops after phone screen lock.
 * **Fix:** The dedicated `whatsapp-worker` runs an automatic reconnect loop with exponential backoff. Check logs:
   ```bash

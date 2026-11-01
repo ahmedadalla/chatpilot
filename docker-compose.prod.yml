@@ -48,7 +48,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/healthz"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001/healthz"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -97,6 +97,8 @@ services:
     restart: unless-stopped
     env_file:
       - ${ENV_FILE:-.env.production}
+    environment:
+      PORT: "3000"
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:
