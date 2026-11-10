@@ -26,9 +26,9 @@ export async function bootstrapSuperAdmin(prisma: PrismaClient): Promise<void> {
   const mfaSetup = totpService.generateSecret(email);
 
   // Use SECURITY DEFINER function to bypass RLS (users_policy blocks unscoped DML)
-  const existingRow = await prisma.$queryRaw<{ id: string; email: string }[]>(
-    prisma.$queryRaw`SELECT * FROM platform_find_super_admin(${email})`,
-  );
+  const existingRow = await prisma.$queryRaw<{ id: string; email: string }[]>`
+    SELECT * FROM platform_find_super_admin(${email})
+  `;
 
   if (existingRow.length > 0) {
     logger.info('Super Admin account already exists; skipping bootstrap');
