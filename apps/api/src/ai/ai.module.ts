@@ -8,10 +8,11 @@ import { AiToolsService } from './tools/ai-tools.service';
 import { PendingOrderService } from './tools/pending-order.service';
 import { MenuModule } from '../menu/menu.module';
 import { OrderModule } from '../order/order.module';
+import { AuthModule } from '../auth/auth.module';
 import { PrismaService } from '@chatpilot/database';
 
 @Module({
-  imports: [MenuModule, OrderModule],
+  imports: [MenuModule, OrderModule, AuthModule],
   controllers: [AiController],
   providers: [
     AiOrchestratorService,
