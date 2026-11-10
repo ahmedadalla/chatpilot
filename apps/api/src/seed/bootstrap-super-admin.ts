@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { PrismaClient, Role } from '@chatpilot/database';
+import { PrismaClient } from '@chatpilot/database';
 import { PasswordService } from '../auth/password.service';
 import { TotpService } from '../auth/totp.service';
 
@@ -26,30 +26,32 @@ export async function bootstrapSuperAdmin(prisma: PrismaClient): Promise<void> {
   const mfaSetup = totpService.generateSecret(email);
 
   // Use SECURITY DEFINER function to bypass RLS (users_policy blocks unscoped DML)
-  const existingRow = await prisma.$queryRawUnsafe(
-    `SELECT * FROM platform_find_super_admin(${prisma.$escapeString(email)})`,
-  ) as Array<{ id: string; email: string }>;
+  const existingRow = await prisma.$queryRaw<{ id: string; email: string }[]>(
+    prisma.$queryRaw`SELECT * FROM platform_find_super_admin(${email})`,
+  );
 
   if (existingRow.length > 0) {
     logger.info('Super Admin account already exists; skipping bootstrap');
     return;
   }
 
-  const recoveryCodesJson = JSON.stringify(mfaSetup.hashedRecoveryCodes);
-
-  const newId = await prisma.$queryRawUnsafe<{ id: string }[]>(`
+  const newId = await prisma.$queryRaw<{ id: string }[]>`
     SELECT superadmin_create_user(
-      ${prisma.$escapeString(email)},
-      ${prisma.$escapeString('Platform Super Admin')},
-      ${prisma.$escapeString(passwordHash)},
-      ${prisma.$escapeString(mfaSetup.secret)},
-      ${recoveryCodesJson}::jsonb
+      ${email},
+      'Platform Super Admin',
+      ${passwordHash},
+      ${mfaSetup.secret},
+      ${JSON.stringify(mfaSetup.hashedRecoveryCodes)}::jsonb
     ) AS id
-  `)[0];
+  `;
+
+  if (!newId[0]) {
+    throw new Error('superadmin_create_user returned no id');
+  }
 
   logger.info(
     {
-      userId: newId.id,
+      userId: newId[0].id,
       email,
       totpSecret: mfaSetup.secret,
       recoveryCodes: mfaSetup.recoveryCodes,
