@@ -16,15 +16,6 @@ export async function bootstrapSuperAdmin(prisma: PrismaClient): Promise<void> {
     return;
   }
 
-  const existingSuperAdmin = await prisma.user.findFirst({
-    where: { role: Role.SUPER_ADMIN },
-  });
-
-  if (existingSuperAdmin) {
-    logger.info('Super Admin account already exists; skipping bootstrap');
-    return;
-  }
-
   const email = (process.env['SUPER_ADMIN_EMAIL'] || 'admin@chatpilot.io').toLowerCase().trim();
   const password = process.env['SUPER_ADMIN_PASSWORD'] || 'SuperAdmin_12345!Secure';
 
@@ -34,25 +25,32 @@ export async function bootstrapSuperAdmin(prisma: PrismaClient): Promise<void> {
   const passwordHash = await passwordService.hash(password);
   const mfaSetup = totpService.generateSecret(email);
 
-  const superAdmin = await prisma.user.create({
-    data: {
-      email,
-      name: 'Platform Super Admin',
-      passwordHash,
-      role: Role.SUPER_ADMIN,
-      platformCapable: true,
-      isActive: true,
-      isVerified: true,
-      permissionsVersion: 1,
-      totpSecret: mfaSetup.secret,
-      totpRecoveryCodes: mfaSetup.hashedRecoveryCodes,
-    },
-  });
+  // Use SECURITY DEFINER function to bypass RLS (users_policy blocks unscoped DML)
+  const existingRow = await prisma.$queryRawUnsafe(
+    `SELECT * FROM platform_find_super_admin(${prisma.$escapeString(email)})`,
+  ) as Array<{ id: string; email: string }>;
+
+  if (existingRow.length > 0) {
+    logger.info('Super Admin account already exists; skipping bootstrap');
+    return;
+  }
+
+  const recoveryCodesJson = JSON.stringify(mfaSetup.hashedRecoveryCodes);
+
+  const newId = await prisma.$queryRawUnsafe<{ id: string }[]>(`
+    SELECT superadmin_create_user(
+      ${prisma.$escapeString(email)},
+      ${prisma.$escapeString('Platform Super Admin')},
+      ${prisma.$escapeString(passwordHash)},
+      ${prisma.$escapeString(mfaSetup.secret)},
+      ${recoveryCodesJson}::jsonb
+    ) AS id
+  `)[0];
 
   logger.info(
     {
-      userId: superAdmin.id,
-      email: superAdmin.email,
+      userId: newId.id,
+      email,
       totpSecret: mfaSetup.secret,
       recoveryCodes: mfaSetup.recoveryCodes,
     },
