@@ -20,6 +20,7 @@ WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 RUN npm install -g pnpm@9.7.0
 ENV NODE_ENV=production
+ENV PORT=3000
 COPY --from=builder /app /app
 EXPOSE 3000
 CMD ["pnpm", "--filter", "@chatpilot/web", "start"]
