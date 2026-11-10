@@ -123,7 +123,9 @@ export class SessionService {
           },
         });
 
-        throw new UnauthorizedException('Security alert: Refresh token reuse detected; session terminated');
+        throw new UnauthorizedException(
+          'Security alert: Refresh token reuse detected; session terminated',
+        );
       }
 
       // 3. Expiration Check

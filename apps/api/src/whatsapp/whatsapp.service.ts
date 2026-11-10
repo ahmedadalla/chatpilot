@@ -17,6 +17,7 @@ import {
   PairingHandleResponse,
   InboundMessageEvent,
   normalizePhoneNumber,
+  Role,
 } from '@chatpilot/contracts';
 import pino from 'pino';
 
@@ -229,5 +230,107 @@ export class WhatsAppService {
       status: 'acknowledged',
       actionTaken: 'DISPATCHED_TO_AI_ORDERING',
     };
+  }
+
+  /**
+   * Lists all WhatsApp connections for the caller's company/branch scope
+   */
+  async listConnections(callerCtx: InteractiveAuthContext, branchId?: string) {
+    if (!callerCtx.companyId) {
+      throw new NotFoundException('Company not found');
+    }
+
+    const targetBranchId = callerCtx.role === Role.BRANCH_MANAGER ? callerCtx.branchId : branchId;
+
+    return this.prisma.whatsAppConnection.findMany({
+      where: {
+        companyId: callerCtx.companyId,
+        ...(targetBranchId ? { branchId: targetBranchId } : {}),
+      },
+      select: {
+        id: true,
+        companyId: true,
+        branchId: true,
+        provider: true,
+        businessConnectionId: true,
+        phoneNumber: true,
+        status: true,
+        riskAcknowledgedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Disconnects a WhatsApp connection
+   */
+  async disconnectConnection(
+    callerCtx: InteractiveAuthContext,
+    connectionId: string,
+  ): Promise<void> {
+    const conn = await this.prisma.whatsAppConnection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!conn || conn.companyId !== callerCtx.companyId) {
+      throw new NotFoundException('WhatsApp connection not found');
+    }
+
+    if (callerCtx.branchId && conn.branchId !== callerCtx.branchId) {
+      throw new NotFoundException('WhatsApp connection not found');
+    }
+
+    await this.prisma.whatsAppConnection.update({
+      where: { id: connectionId },
+      data: {
+        status: WhatsAppConnectionStatus.DISCONNECTED,
+      },
+    });
+  }
+
+  /**
+   * Re-initializes pairing QR / pairing code for an existing connection
+   */
+  async refreshQr(
+    callerCtx: InteractiveAuthContext,
+    connectionId: string,
+  ): Promise<PairingHandleResponse> {
+    const conn = await this.prisma.whatsAppConnection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!conn || conn.companyId !== callerCtx.companyId) {
+      throw new NotFoundException('WhatsApp connection not found');
+    }
+
+    if (callerCtx.branchId && conn.branchId !== callerCtx.branchId) {
+      throw new NotFoundException('WhatsApp connection not found');
+    }
+
+    let adapter;
+    switch (conn.provider) {
+      case WhatsAppProviderType.CLOUD_API:
+        adapter = this.cloudApiAdapter;
+        break;
+      case WhatsAppProviderType.COEXISTENCE:
+        adapter = this.coexistenceAdapter;
+        break;
+      case WhatsAppProviderType.REGULAR_QR_PAIRING:
+        adapter = this.baileysQrAdapter;
+        break;
+      default:
+        throw new BadRequestException('Unsupported WhatsApp provider');
+    }
+
+    return adapter.initConnection(conn.id);
   }
 }

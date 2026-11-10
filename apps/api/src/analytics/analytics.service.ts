@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService, InteractiveAuthContext } from '@chatpilot/database';
 import {
   BranchOperationalResponseDto,
@@ -16,6 +12,105 @@ import {
 @Injectable()
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Helper to compute real average preparation and delivery durations from status history
+   */
+  private async calculateAverageDurations(companyId: string, branchId?: string) {
+    const prepTransitions = await this.prisma.orderStatusHistory.findMany({
+      where: {
+        order: {
+          companyId,
+          ...(branchId ? { branchId } : {}),
+        },
+        toStatus: OrderStatus.READY_FOR_DELIVERY,
+      },
+      select: {
+        orderId: true,
+        occurredAt: true,
+      },
+      take: 50,
+      orderBy: { occurredAt: 'desc' },
+    });
+
+    let avgPrep = 0;
+    if (prepTransitions.length > 0) {
+      const orderIds = prepTransitions.map((t) => t.orderId);
+      const startTransitions = await this.prisma.orderStatusHistory.findMany({
+        where: {
+          orderId: { in: orderIds },
+          toStatus: OrderStatus.IN_PREPARATION,
+        },
+        select: {
+          orderId: true,
+          occurredAt: true,
+        },
+      });
+
+      const startMap = new Map(startTransitions.map((t) => [t.orderId, t.occurredAt.getTime()]));
+      let totalMinutes = 0;
+      let count = 0;
+      for (const ready of prepTransitions) {
+        const startTime = startMap.get(ready.orderId);
+        if (startTime) {
+          const diffMinutes = Math.round((ready.occurredAt.getTime() - startTime) / (60 * 1000));
+          if (diffMinutes >= 0 && diffMinutes < 300) {
+            totalMinutes += diffMinutes;
+            count++;
+          }
+        }
+      }
+      avgPrep = count > 0 ? Math.round(totalMinutes / count) : 0;
+    }
+
+    const deliveryTransitions = await this.prisma.orderStatusHistory.findMany({
+      where: {
+        order: {
+          companyId,
+          ...(branchId ? { branchId } : {}),
+        },
+        toStatus: OrderStatus.DELIVERED,
+      },
+      select: {
+        orderId: true,
+        occurredAt: true,
+      },
+      take: 50,
+      orderBy: { occurredAt: 'desc' },
+    });
+
+    let avgDelivery = 0;
+    if (deliveryTransitions.length > 0) {
+      const orderIds = deliveryTransitions.map((t) => t.orderId);
+      const outTransitions = await this.prisma.orderStatusHistory.findMany({
+        where: {
+          orderId: { in: orderIds },
+          toStatus: OrderStatus.OUT_FOR_DELIVERY,
+        },
+        select: {
+          orderId: true,
+          occurredAt: true,
+        },
+      });
+
+      const outMap = new Map(outTransitions.map((t) => [t.orderId, t.occurredAt.getTime()]));
+      let totalMinutes = 0;
+      let count = 0;
+      for (const del of deliveryTransitions) {
+        const outTime = outMap.get(del.orderId);
+        if (outTime) {
+          const diffMinutes = Math.round((del.occurredAt.getTime() - outTime) / (60 * 1000));
+          if (diffMinutes >= 0 && diffMinutes < 600) {
+            totalMinutes += diffMinutes;
+            count++;
+          }
+        }
+      }
+      avgDelivery = count > 0 ? Math.round(totalMinutes / count) : 0;
+    }
+
+    return { avgPrep, avgDelivery };
+  }
 
   /**
    * Operational analytics for branch staff (KITCHEN, DELIVERY, STAFF, BRANCH_MANAGER)
@@ -32,11 +127,13 @@ export class AnalyticsService {
     const companyId = callerCtx.companyId!;
 
     // Aggregate operational counters
-    const [total, delivered, cancelled, failed, active] = await Promise.all([
+    const [total, delivered, cancelled, failed, active, durations] = await Promise.all([
       this.prisma.order.count({ where: { companyId, branchId } }),
       this.prisma.order.count({ where: { companyId, branchId, status: OrderStatus.DELIVERED } }),
       this.prisma.order.count({ where: { companyId, branchId, status: OrderStatus.CANCELLED } }),
-      this.prisma.order.count({ where: { companyId, branchId, status: OrderStatus.FAILED_DELIVERY } }),
+      this.prisma.order.count({
+        where: { companyId, branchId, status: OrderStatus.FAILED_DELIVERY },
+      }),
       this.prisma.order.count({
         where: {
           companyId,
@@ -52,6 +149,7 @@ export class AnalyticsService {
           },
         },
       }),
+      this.calculateAverageDurations(companyId, branchId),
     ]);
 
     return {
@@ -62,8 +160,8 @@ export class AnalyticsService {
         cancelledOrders: cancelled,
         failedDeliveryOrders: failed,
         activeOrders: active,
-        avgPrepDurationMinutes: 18,
-        avgDeliveryDurationMinutes: 24,
+        avgPrepDurationMinutes: durations.avgPrep,
+        avgDeliveryDurationMinutes: durations.avgDelivery,
       },
     };
   }
@@ -78,7 +176,9 @@ export class AnalyticsService {
   ): Promise<BranchFinancialResponseDto> {
     // 1. Explicit capability check
     if (!callerCtx.capabilities.has('analytics:financial:read')) {
-      throw new ForbiddenException('Operational roles do not have permission to access financial metrics');
+      throw new ForbiddenException(
+        'Operational roles do not have permission to access financial metrics',
+      );
     }
 
     if (callerCtx.branchId && callerCtx.branchId !== branchId) {
@@ -160,7 +260,7 @@ export class AnalyticsService {
 
     const currency = company.settings?.defaultCurrency || 'EGP';
 
-    const [total, delivered, cancelled, failed, active] = await Promise.all([
+    const [total, delivered, cancelled, failed, active, durations, aiUsage] = await Promise.all([
       this.prisma.order.count({ where: { companyId } }),
       this.prisma.order.count({ where: { companyId, status: OrderStatus.DELIVERED } }),
       this.prisma.order.count({ where: { companyId, status: OrderStatus.CANCELLED } }),
@@ -178,6 +278,11 @@ export class AnalyticsService {
             ],
           },
         },
+      }),
+      this.calculateAverageDurations(companyId),
+      this.prisma.usageEvent.aggregate({
+        where: { companyId, metric: 'ai_tokens' },
+        _sum: { amount: true },
       }),
     ]);
 
@@ -204,8 +309,8 @@ export class AnalyticsService {
         cancelledOrders: cancelled,
         failedDeliveryOrders: failed,
         activeOrders: active,
-        avgPrepDurationMinutes: 19,
-        avgDeliveryDurationMinutes: 25,
+        avgPrepDurationMinutes: durations.avgPrep,
+        avgDeliveryDurationMinutes: durations.avgDelivery,
       },
       financial: {
         gmvSubtotal: Number(deliveredAgg._sum.subtotal || 0),
@@ -216,7 +321,7 @@ export class AnalyticsService {
         cancellationLoss: Number(cancelledAgg._sum.total || 0),
       },
       totalMessages: messagesCount,
-      aiTokensUsed: 12500,
+      aiTokensUsed: aiUsage._sum.amount || 0,
     };
   }
 
@@ -225,21 +330,30 @@ export class AnalyticsService {
    * Shows currency-specific totals without unapproved FX conversion.
    * SaaS MRR is structurally separated from restaurant GMV.
    */
-  async getPlatformMetrics(callerCtx: InteractiveAuthContext): Promise<PlatformAnalyticsResponseDto> {
+  async getPlatformMetrics(
+    callerCtx: InteractiveAuthContext,
+  ): Promise<PlatformAnalyticsResponseDto> {
     if (callerCtx.role !== Role.SUPER_ADMIN) {
       throw new ForbiddenException('Only Super Admin can access platform-wide analytics');
     }
 
-    const [totalCompanies, activeCompanies, totalBranches, totalOrders] = await Promise.all([
-      this.prisma.company.count(),
-      this.prisma.company.count({ where: { status: 'ACTIVE' } }),
-      this.prisma.branch.count({ where: { isActive: true } }),
-      this.prisma.order.count(),
-    ]);
+    const [totalCompanies, activeCompanies, totalBranches, totalOrders, activeSubs] =
+      await Promise.all([
+        this.prisma.company.count(),
+        this.prisma.company.count({ where: { status: 'ACTIVE' } }),
+        this.prisma.branch.count({ where: { isActive: true } }),
+        this.prisma.order.count(),
+        this.prisma.subscription.findMany({
+          where: { status: 'ACTIVE' },
+          include: { plan: true },
+        }),
+      ]);
 
     const delivered = await this.prisma.order.count({ where: { status: OrderStatus.DELIVERED } });
     const cancelled = await this.prisma.order.count({ where: { status: OrderStatus.CANCELLED } });
-    const failed = await this.prisma.order.count({ where: { status: OrderStatus.FAILED_DELIVERY } });
+    const failed = await this.prisma.order.count({
+      where: { status: OrderStatus.FAILED_DELIVERY },
+    });
 
     // Group GMV by currency (D-11, D-20)
     const ordersByCurrency = await this.prisma.order.groupBy({
@@ -253,6 +367,13 @@ export class AnalyticsService {
       gmvByCurrency[group.currency] = Number(group._sum.total || 0);
     }
 
+    let saasMrr = 0;
+    for (const sub of activeSubs) {
+      const limits = sub.plan.limits as Record<string, unknown> | null;
+      const price = typeof limits?.['monthlyPrice'] === 'number' ? limits['monthlyPrice'] : 2500;
+      saasMrr += price;
+    }
+
     return {
       day: new Date(),
       totalCompanies,
@@ -263,7 +384,7 @@ export class AnalyticsService {
       cancelledOrders: cancelled,
       failedDeliveryOrders: failed,
       gmvByCurrency,
-      saasMrrActiveCompanies: activeCompanies * 2500, // SaaS subscription revenue separated from GMV
+      saasMrrActiveCompanies: saasMrr,
     };
   }
 }

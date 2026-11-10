@@ -83,10 +83,7 @@ export class MenuController {
 
   @Post('items')
   @RequireCapabilities('menu:write')
-  async createItem(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Body() dto: CreateMenuItemDto,
-  ) {
+  async createItem(@CurrentUser() user: InteractiveAuthContext, @Body() dto: CreateMenuItemDto) {
     return this.menuService.createItem(user, dto);
   }
 
@@ -101,10 +98,7 @@ export class MenuController {
 
   @Get('items/:id')
   @RequireCapabilities('menu:read')
-  async getItem(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') itemId: string,
-  ) {
+  async getItem(@CurrentUser() user: InteractiveAuthContext, @Param('id') itemId: string) {
     return this.menuService.getItem(user, itemId);
   }
 
@@ -121,10 +115,7 @@ export class MenuController {
   @Delete('items/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @RequireCapabilities('menu:write')
-  async archiveItem(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Param('id') itemId: string,
-  ) {
+  async archiveItem(@CurrentUser() user: InteractiveAuthContext, @Param('id') itemId: string) {
     await this.menuService.archiveItem(user, itemId);
   }
 

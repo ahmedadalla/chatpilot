@@ -161,8 +161,8 @@ export class KbDocumentService {
         ...(callerCtx.role !== Role.COMPANY_ADMIN
           ? { OR: [{ branchId: null }, { branchId: callerCtx.branchId }] }
           : branchId
-          ? { branchId }
-          : {}),
+            ? { branchId }
+            : {}),
       },
       include: {
         _count: { select: { chunks: true } },
@@ -187,7 +187,10 @@ export class KbDocumentService {
   /**
    * Retrieves single document details
    */
-  async getDocument(callerCtx: InteractiveAuthContext, documentId: string): Promise<KbDocumentResponseDto> {
+  async getDocument(
+    callerCtx: InteractiveAuthContext,
+    documentId: string,
+  ): Promise<KbDocumentResponseDto> {
     const doc = await this.prisma.knowledgeBaseDocument.findFirst({
       where: {
         id: documentId,

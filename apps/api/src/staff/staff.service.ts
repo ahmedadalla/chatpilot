@@ -18,6 +18,42 @@ export class StaffService {
   ) {}
 
   /**
+   * Lists staff members within the caller's tenant scope
+   */
+  async listStaff(callerCtx: InteractiveAuthContext, branchId?: string) {
+    if (!callerCtx.companyId) {
+      throw new ForbiddenException('Tenant company context is required to list staff');
+    }
+
+    const targetBranchId = callerCtx.role === Role.BRANCH_MANAGER ? callerCtx.branchId : branchId;
+
+    return this.prisma.user.findMany({
+      where: {
+        companyId: callerCtx.companyId,
+        ...(targetBranchId ? { branchId: targetBranchId } : {}),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        companyId: true,
+        branchId: true,
+        isActive: true,
+        createdAt: true,
+        branch: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
    * Invites a new staff member within caller's scope and according to grantor allowlists
    */
   async invite(callerCtx: InteractiveAuthContext, dto: InviteStaffDto) {

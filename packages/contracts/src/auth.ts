@@ -55,3 +55,30 @@ export interface TotpEnrollResponse {
 export interface TotpVerifyDto {
   code: string;
 }
+
+export interface MeCompanySummary {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+}
+
+export interface MeBranchSummary {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+}
+
+export interface MeResponseDto {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  companyId: string | null;
+  branchId: string | null;
+  company?: MeCompanySummary | null;
+  branch?: MeBranchSummary | null;
+  capabilities: string[];
+  permissionsVersion: number;
+}

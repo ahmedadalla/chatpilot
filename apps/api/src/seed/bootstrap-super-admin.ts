@@ -10,7 +10,9 @@ export async function bootstrapSuperAdmin(prisma: PrismaClient): Promise<void> {
   const bootstrapOverride = process.env['BOOTSTRAP_OVERRIDE'] === 'true';
 
   if (isProduction && !bootstrapOverride) {
-    logger.info('Production mode detected without BOOTSTRAP_OVERRIDE=true; skipping automatic bootstrap seed');
+    logger.info(
+      'Production mode detected without BOOTSTRAP_OVERRIDE=true; skipping automatic bootstrap seed',
+    );
     return;
   }
 
@@ -56,4 +58,18 @@ export async function bootstrapSuperAdmin(prisma: PrismaClient): Promise<void> {
     },
     'First Super Admin bootstrapped successfully (save these recovery codes!)',
   );
+}
+
+if (require.main === module) {
+  const prisma = new PrismaClient();
+  bootstrapSuperAdmin(prisma)
+    .then(async () => {
+      await prisma.$disconnect();
+      process.exit(0);
+    })
+    .catch(async (err) => {
+      logger.error({ err }, 'Bootstrap failed');
+      await prisma.$disconnect();
+      process.exit(1);
+    });
 }

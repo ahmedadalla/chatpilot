@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, NotFoundException } from '@nestjs/common';
 import { InteractiveAuthContext } from '@chatpilot/database';
 import { Role } from '@chatpilot/contracts';
 

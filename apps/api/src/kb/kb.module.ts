@@ -9,16 +9,7 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [AuthModule],
   controllers: [KbController],
-  providers: [
-    KbDocumentService,
-    KbRetrievalService,
-    KbEmbeddingService,
-    PrismaService,
-  ],
-  exports: [
-    KbDocumentService,
-    KbRetrievalService,
-    KbEmbeddingService,
-  ],
+  providers: [KbDocumentService, KbRetrievalService, KbEmbeddingService, PrismaService],
+  exports: [KbDocumentService, KbRetrievalService, KbEmbeddingService],
 })
 export class KbModule {}

@@ -1,10 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  randomBytes,
-  createCipheriv,
-  createDecipheriv,
-  createHash,
-} from 'node:crypto';
+import { randomBytes, createCipheriv, createDecipheriv, createHash } from 'node:crypto';
 
 interface EncryptedEnvelope {
   v: number;

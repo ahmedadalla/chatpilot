@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-  BadRequestException,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { PlatformSupportService } from './platform-support.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CapabilitiesGuard } from '../auth/guards/capabilities.guard';
@@ -32,8 +25,27 @@ export class PlatformSupportController {
     @Query('reason') auditReason: string,
   ) {
     if (!auditReason) {
-      throw new BadRequestException('Query parameter "reason" is required for platform support inspection');
+      throw new BadRequestException(
+        'Query parameter "reason" is required for platform support inspection',
+      );
     }
     return this.platformSupportService.getCompanyDetails(user, companyId, auditReason);
+  }
+
+  @Get('audit-logs')
+  @RequireCapabilities('audit:read')
+  async getAuditLogs(
+    @CurrentUser() user: InteractiveAuthContext,
+    @Query('action') action?: string,
+    @Query('companyId') companyId?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.platformSupportService.getAuditLogs(user, {
+      action,
+      companyId,
+      limit: limit ? parseInt(limit, 10) : 50,
+      offset: offset ? parseInt(offset, 10) : 0,
+    });
   }
 }

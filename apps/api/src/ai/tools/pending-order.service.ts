@@ -35,7 +35,13 @@ export class PendingOrderService {
     companyId: string,
     branchId: string,
     conversationId: string,
-    lines: Array<{ itemId: string; name: string; price: number; quantity: number; lineTotal: number }>,
+    lines: Array<{
+      itemId: string;
+      name: string;
+      price: number;
+      quantity: number;
+      lineTotal: number;
+    }>,
     pricesSnapshot: { subtotal: number; deliveryFee: number; total: number; currency: string },
   ) {
     const confirmToken = this.generateConfirmToken();

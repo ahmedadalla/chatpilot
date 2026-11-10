@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService, InteractiveAuthContext } from '@chatpilot/database';
 import {
   OrderStatus,
@@ -32,11 +28,7 @@ export class OrderBoardService {
         companyId: callerCtx.companyId!,
         branchId,
         status: {
-          in: [
-            OrderStatus.PENDING,
-            OrderStatus.ACCEPTED,
-            OrderStatus.IN_PREPARATION,
-          ],
+          in: [OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.IN_PREPARATION],
         },
       },
       include: {
@@ -76,10 +68,7 @@ export class OrderBoardService {
         companyId: callerCtx.companyId!,
         branchId,
         status: {
-          in: [
-            OrderStatus.READY_FOR_DELIVERY,
-            OrderStatus.OUT_FOR_DELIVERY,
-          ],
+          in: [OrderStatus.READY_FOR_DELIVERY, OrderStatus.OUT_FOR_DELIVERY],
         },
       },
       orderBy: { createdAt: 'asc' },
@@ -171,5 +160,79 @@ export class OrderBoardService {
         occurredAt: h.occurredAt,
       })),
     }));
+  }
+
+  /**
+   * Retrieves single order by id with items and complete status history
+   */
+  async getOrder(callerCtx: InteractiveAuthContext, orderId: string): Promise<OrderResponseDto> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+        statusHistory: {
+          orderBy: { occurredAt: 'asc' },
+        },
+      },
+    });
+
+    if (!order || order.companyId !== callerCtx.companyId) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (callerCtx.branchId && order.branchId !== callerCtx.branchId) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (
+      callerCtx.role === Role.DELIVERY &&
+      order.status !== OrderStatus.READY_FOR_DELIVERY &&
+      order.status !== OrderStatus.OUT_FOR_DELIVERY &&
+      order.status !== OrderStatus.DELIVERED &&
+      order.status !== OrderStatus.FAILED_DELIVERY
+    ) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return {
+      id: order.id,
+      companyId: order.companyId,
+      branchId: order.branchId,
+      orderNumber: order.orderNumber,
+      sequenceDay: order.sequenceDay,
+      status: order.status,
+      currency: order.currency,
+      subtotal: Number(order.subtotal),
+      deliveryFee: Number(order.deliveryFee),
+      discount: Number(order.discount || 0),
+      total: Number(order.total),
+      customerId: order.customerId,
+      address: order.address,
+      phone: order.phone,
+      notes: order.notes,
+      paymentMethod: order.paymentMethod,
+      source: order.source,
+      idempotencyKey: order.idempotencyKey,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      items: order.items.map((i) => ({
+        id: i.id,
+        menuItemId: i.menuItemId,
+        nameSnapshot: i.nameSnapshot,
+        unitPriceSnapshot: Number(i.unitPriceSnapshot),
+        quantity: i.quantity,
+        lineTotal: Number(i.lineTotal),
+        notes: i.notes,
+      })),
+      statusHistory: order.statusHistory.map((h) => ({
+        id: h.id,
+        fromStatus: h.fromStatus,
+        toStatus: h.toStatus,
+        actorUserId: h.actorUserId,
+        actorRole: h.actorRole,
+        reason: h.reason,
+        occurredAt: h.occurredAt,
+      })),
+    };
   }
 }

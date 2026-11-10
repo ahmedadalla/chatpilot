@@ -6,6 +6,7 @@
     "build": "tsc",
     "start": "node dist/main.js",
     "dev": "tsc --watch",
+    "seed": "node dist/seed/bootstrap-super-admin.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\""
   },

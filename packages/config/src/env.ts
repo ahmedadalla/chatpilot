@@ -42,7 +42,9 @@ export function validateEnv(envInput: Record<string, unknown> = process.env): En
     const errorDetails = result.error.errors
       .map((err) => `  - ${err.path.join('.')}: ${err.message}`)
       .join('\n');
-    throw new Error(`[Configuration Error] Boot-time environment validation failed:\n${errorDetails}`);
+    throw new Error(
+      `[Configuration Error] Boot-time environment validation failed:\n${errorDetails}`,
+    );
   }
   return result.data;
 }

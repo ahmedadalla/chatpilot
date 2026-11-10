@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService, InteractiveAuthContext } from '@chatpilot/database';
 import { TokenService } from '../token.service';
@@ -89,6 +84,7 @@ export class JwtAuthGuard implements CanActivate {
     const authContext: InteractiveAuthContext = {
       scope: user.role === Role.SUPER_ADMIN ? 'platform' : user.branchId ? 'branch' : 'company',
       userId: user.id,
+      sessionId: payload.sid,
       role: user.role,
       companyId: user.companyId,
       branchId: user.branchId,

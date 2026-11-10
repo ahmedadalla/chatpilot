@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import pino from 'pino';
 import { validateEnv } from '@chatpilot/config';
+import { PrismaService } from '@chatpilot/database';
+import { bootstrapSuperAdmin } from './seed/bootstrap-super-admin';
 import { AppModule } from './app.module';
 
 const logger = pino({
@@ -54,7 +56,15 @@ async function bootstrap() {
     SwaggerModule.setup('docs', app, document);
   }
 
-  // 7. Start listening
+  // 7. Initial Super Admin bootstrap check (if BOOTSTRAP_OVERRIDE=true)
+  try {
+    const prisma = app.get(PrismaService);
+    await bootstrapSuperAdmin(prisma);
+  } catch (err: unknown) {
+    logger.warn({ err }, 'Bootstrap super admin check skipped or failed');
+  }
+
+  // 8. Start listening
   await app.listen(env.PORT, '0.0.0.0');
   logger.info(`ChatPilot API is running on http://0.0.0.0:${env.PORT}`);
 }

@@ -4,11 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import {
-  PrismaService,
-  TenantScopeService,
-  InteractiveAuthContext,
-} from '@chatpilot/database';
+import { PrismaService, TenantScopeService, InteractiveAuthContext } from '@chatpilot/database';
 import { Role } from '@chatpilot/contracts';
 
 @Injectable()
@@ -68,7 +64,9 @@ export class PlatformSupportService {
     }
 
     if (!auditReason || auditReason.trim() === '') {
-      throw new BadRequestException('A valid audit reason is required for platform support inspection');
+      throw new BadRequestException(
+        'A valid audit reason is required for platform support inspection',
+      );
     }
 
     return this.tenantScopeService.runInPlatformSupportScope(
@@ -100,5 +98,58 @@ export class PlatformSupportService {
         return company;
       },
     );
+  }
+
+  /**
+   * Retrieves platform audit logs (SUPER_ADMIN only)
+   */
+  async getAuditLogs(
+    callerCtx: InteractiveAuthContext,
+    options?: {
+      action?: string;
+      companyId?: string;
+      limit?: number;
+      offset?: number;
+    },
+  ) {
+    if (callerCtx.role !== Role.SUPER_ADMIN) {
+      throw new ForbiddenException('Only Super Admin can access platform audit logs');
+    }
+
+    const take = options?.limit || 50;
+    const skip = options?.offset || 0;
+
+    const [logs, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where: {
+          ...(options?.action ? { action: options.action } : {}),
+          ...(options?.companyId ? { companyId: options.companyId } : {}),
+        },
+        include: {
+          company: {
+            select: { id: true, name: true, slug: true },
+          },
+          actorUser: {
+            select: { id: true, name: true, email: true, role: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
+      }),
+      this.prisma.auditLog.count({
+        where: {
+          ...(options?.action ? { action: options.action } : {}),
+          ...(options?.companyId ? { companyId: options.companyId } : {}),
+        },
+      }),
+    ]);
+
+    return {
+      items: logs,
+      total,
+      limit: take,
+      offset: skip,
+    };
   }
 }

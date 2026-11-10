@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AiController } from './ai.controller';
 import { AiOrchestratorService } from './ai-orchestrator.service';
 import { GeminiAdapter } from './providers/gemini.adapter';
 import { OpenAiAdapter } from './providers/openai.adapter';
@@ -11,6 +12,7 @@ import { PrismaService } from '@chatpilot/database';
 
 @Module({
   imports: [MenuModule, OrderModule],
+  controllers: [AiController],
   providers: [
     AiOrchestratorService,
     GeminiAdapter,
@@ -20,11 +22,6 @@ import { PrismaService } from '@chatpilot/database';
     PendingOrderService,
     PrismaService,
   ],
-  exports: [
-    AiOrchestratorService,
-    AiToolsService,
-    PendingOrderService,
-    GeminiAdapter,
-  ],
+  exports: [AiOrchestratorService, AiToolsService, PendingOrderService, GeminiAdapter],
 })
 export class AiModule {}

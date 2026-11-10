@@ -1,8 +1,11 @@
 import {
   Controller,
+  Get,
   Post,
+  Delete,
   Body,
   Param,
+  Query,
   Headers,
   Req,
   Res,
@@ -21,10 +24,7 @@ import { RequireCapabilities } from '../auth/decorators/require-caps.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { InteractiveAuthContext } from '@chatpilot/database';
-import {
-  SetupWhatsAppConnectionDto,
-  WhatsAppProviderType,
-} from '@chatpilot/contracts';
+import { SetupWhatsAppConnectionDto, WhatsAppProviderType } from '@chatpilot/contracts';
 
 @Controller()
 export class WhatsAppController {
@@ -83,6 +83,19 @@ export class WhatsAppController {
   }
 
   /**
+   * Lists all WhatsApp connections
+   */
+  @Get('whatsapp/connections')
+  @UseGuards(JwtAuthGuard, CapabilitiesGuard)
+  @RequireCapabilities('company:read')
+  async listConnections(
+    @CurrentUser() user: InteractiveAuthContext,
+    @Query('branchId') branchId?: string,
+  ) {
+    return this.whatsAppService.listConnections(user, branchId);
+  }
+
+  /**
    * Connects a WhatsApp account (COMPANY_ADMIN only)
    */
   @Post('whatsapp/connections')
@@ -93,5 +106,30 @@ export class WhatsAppController {
     @Body() dto: SetupWhatsAppConnectionDto,
   ) {
     return this.whatsAppService.setupConnection(user, dto);
+  }
+
+  /**
+   * Disconnects a WhatsApp connection
+   */
+  @Delete('whatsapp/connections/:id')
+  @UseGuards(JwtAuthGuard, CapabilitiesGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequireCapabilities('whatsapp:config:write')
+  async disconnectConnection(
+    @CurrentUser() user: InteractiveAuthContext,
+    @Param('id') connectionId: string,
+  ) {
+    await this.whatsAppService.disconnectConnection(user, connectionId);
+  }
+
+  /**
+   * Refreshes pairing QR / code for a connection
+   */
+  @Post('whatsapp/connections/:id/refresh-qr')
+  @UseGuards(JwtAuthGuard, CapabilitiesGuard)
+  @HttpCode(HttpStatus.OK)
+  @RequireCapabilities('whatsapp:config:write')
+  async refreshQr(@CurrentUser() user: InteractiveAuthContext, @Param('id') connectionId: string) {
+    return this.whatsAppService.refreshQr(user, connectionId);
   }
 }

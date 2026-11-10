@@ -17,7 +17,9 @@ export class TokenService {
   private readonly ttlSeconds: number;
 
   constructor() {
-    this.secret = process.env['JWT_SECRET'] || 'super_secret_jwt_signing_key_at_least_32_characters_long_for_security';
+    this.secret =
+      process.env['JWT_SECRET'] ||
+      'super_secret_jwt_signing_key_at_least_32_characters_long_for_security';
     this.ttlSeconds = Number(process.env['JWT_ACCESS_TTL'] || 900);
   }
 

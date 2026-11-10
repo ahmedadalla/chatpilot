@@ -117,7 +117,10 @@ test('E2E Scenario 1: Single-branch company full order lifecycle & cross-tenant 
   assert.strictEqual(order.status, OrderStatus.ACCEPTED);
 
   // Step 8: K starts prep -> IN_PREPARATION
-  assert.strictEqual(ROLE_CAPABILITIES[kitchenStaff.role].has('orders:transition:start-prep'), true);
+  assert.strictEqual(
+    ROLE_CAPABILITIES[kitchenStaff.role].has('orders:transition:start-prep'),
+    true,
+  );
   order.status = OrderStatus.IN_PREPARATION;
   assert.strictEqual(order.status, OrderStatus.IN_PREPARATION);
 
@@ -127,7 +130,10 @@ test('E2E Scenario 1: Single-branch company full order lifecycle & cross-tenant 
   assert.strictEqual(order.status, OrderStatus.READY_FOR_DELIVERY);
 
   // Step 10: D logs in; delivery board shows order. D starts delivery -> OUT_FOR_DELIVERY
-  assert.strictEqual(ROLE_CAPABILITIES[deliveryStaff.role].has('orders:transition:start-delivery'), true);
+  assert.strictEqual(
+    ROLE_CAPABILITIES[deliveryStaff.role].has('orders:transition:start-delivery'),
+    true,
+  );
   order.status = OrderStatus.OUT_FOR_DELIVERY;
   assert.strictEqual(order.status, OrderStatus.OUT_FOR_DELIVERY);
 
@@ -151,7 +157,11 @@ test('E2E Scenario 1: Single-branch company full order lifecycle & cross-tenant 
   const probeIsOutOfScope = companyBUser.companyId !== order.companyId;
   assert.strictEqual(probeIsOutOfScope, true);
   const probeResponseStatus = probeIsOutOfScope ? 404 : 200;
-  assert.strictEqual(probeResponseStatus, 404, 'Company B probing Company A order returns 404 Not Found');
+  assert.strictEqual(
+    probeResponseStatus,
+    404,
+    'Company B probing Company A order returns 404 Not Found',
+  );
 });
 
 test('E2E Scenario 2: Multi-branch company, cross-branch isolation & platform support inspection', async () => {
@@ -161,20 +171,48 @@ test('E2E Scenario 2: Multi-branch company, cross-branch isolation & platform su
   const branch1 = { id: 'branch-b1', companyId: companyY.id, code: 'B1', name: 'Branch 1' };
   const branch2 = { id: 'branch-b2', companyId: companyY.id, code: 'B2', name: 'Branch 2' };
 
-  const kitchenStaffB1 = { id: 'k1', companyId: companyY.id, branchId: branch1.id, role: Role.KITCHEN };
-  const kitchenStaffB2 = { id: 'k2', companyId: companyY.id, branchId: branch2.id, role: Role.KITCHEN };
-  const companyAdminY = { id: 'ca-y', companyId: companyY.id, branchId: null, role: Role.COMPANY_ADMIN };
+  const kitchenStaffB1 = {
+    id: 'k1',
+    companyId: companyY.id,
+    branchId: branch1.id,
+    role: Role.KITCHEN,
+  };
+  const kitchenStaffB2 = {
+    id: 'k2',
+    companyId: companyY.id,
+    branchId: branch2.id,
+    role: Role.KITCHEN,
+  };
+  const companyAdminY = {
+    id: 'ca-y',
+    companyId: companyY.id,
+    branchId: null,
+    role: Role.COMPANY_ADMIN,
+  };
 
   // Step 2: Order created in B1
-  const orderB1 = { id: 'order-b1', companyId: companyY.id, branchId: branch1.id, status: OrderStatus.PENDING };
+  const orderB1 = {
+    id: 'order-b1',
+    companyId: companyY.id,
+    branchId: branch1.id,
+    status: OrderStatus.PENDING,
+  };
 
   // Step 3: B2 KITCHEN logs in -> order is NOT visible on B2 kitchen board
   const isVisibleOnB2Board = orderB1.branchId === kitchenStaffB2.branchId;
-  assert.strictEqual(isVisibleOnB2Board, false, 'Branch B1 order is invisible on Branch B2 kitchen board');
+  assert.strictEqual(
+    isVisibleOnB2Board,
+    false,
+    'Branch B1 order is invisible on Branch B2 kitchen board',
+  );
 
   // Step 4: Company Y COMPANY_ADMIN sees both branches' orders
   const companyAdminSeesOrder = orderB1.companyId === companyAdminY.companyId;
-  assert.strictEqual(companyAdminSeesOrder, true, 'Company Admin sees orders across all branches of own company');
+  assert.strictEqual(
+    companyAdminSeesOrder,
+    true,
+    'Company Admin sees orders across all branches of own company',
+  );
 
   // Step 5: SUPER_ADMIN audited read -> AuditLog entry created in same transaction
   const auditReason = 'Investigating reported order delivery issue on ticket #789';

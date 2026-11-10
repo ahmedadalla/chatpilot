@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Res,
@@ -8,6 +9,7 @@ import {
   HttpStatus,
   UseGuards,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -25,6 +27,7 @@ import {
   PasswordResetRequestDto,
   PasswordResetCompleteDto,
   AcceptInvitationDto,
+  TotpVerifyDto,
   Role,
 } from '@chatpilot/contracts';
 
@@ -42,10 +45,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() dto: LoginDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(dto);
 
     // Set refresh token in HttpOnly SameSite=Lax Secure cookie
@@ -91,6 +91,12 @@ export class AuthController {
     };
   }
 
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getMe(@CurrentUser() user: InteractiveAuthContext) {
+    return this.authService.getMe(user.userId);
+  }
+
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -99,12 +105,14 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // Extract session ID from request payload
-    const authHeader = req.headers['authorization'];
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      // Clear cookie
-      res.clearCookie('cp_rft', { path: '/api/v1/auth' });
+    // 1. Revoke database session and refresh tokens
+    if (user.sessionId) {
+      await this.sessionService.revokeSession(user.sessionId, user.userId);
     }
+
+    // 2. Clear refresh cookie across both auth and root paths
+    res.clearCookie('cp_rft', { path: '/api/v1/auth' });
+    res.clearCookie('cp_rft', { path: '/' });
 
     return { success: true };
   }
@@ -131,11 +139,7 @@ export class AuthController {
     @Body() dto: AcceptInvitationDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.invitationService.acceptInvitation(
-      dto.token,
-      dto.password,
-      dto.name,
-    );
+    const result = await this.invitationService.acceptInvitation(dto.token, dto.password, dto.name);
 
     res.cookie('cp_rft', result.tokens.refreshToken, {
       httpOnly: true,
@@ -179,5 +183,25 @@ export class AuthController {
       otpauthUri: mfaSetup.otpauthUri,
       recoveryCodes: mfaSetup.recoveryCodes,
     };
+  }
+
+  @Post('mfa/verify')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async verifyMfa(@CurrentUser() user: InteractiveAuthContext, @Body() dto: TotpVerifyDto) {
+    const userRecord = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+    });
+
+    if (!userRecord || !userRecord.totpSecret) {
+      throw new BadRequestException('MFA has not been initiated for this account');
+    }
+
+    const isValid = this.totpService.verifyToken(userRecord.totpSecret, dto.code);
+    if (!isValid) {
+      throw new BadRequestException('Invalid TOTP verification code');
+    }
+
+    return { success: true };
   }
 }

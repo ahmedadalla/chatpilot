@@ -1,7 +1,4 @@
-import {
-  AiCompletionRequest,
-  AiCompletionResponse,
-} from '@chatpilot/contracts';
+import { AiCompletionRequest, AiCompletionResponse } from '@chatpilot/contracts';
 
 export interface AiProvider {
   id: 'gemini' | 'openai' | 'openrouter';

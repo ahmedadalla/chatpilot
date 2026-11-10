@@ -21,14 +21,20 @@ test('Analytics 1: Rollup totals match raw UsageEvent counts for golden fixture 
     messageSentCount: goldenEvents.filter((e) => e.metric === 'message_sent').length,
   };
 
-  assert.strictEqual(rollup.orderCreatedCount, 3, 'Rollup order count matches raw event counts exactly');
-  assert.strictEqual(rollup.messageSentCount, 1, 'Rollup message count matches raw event counts exactly');
+  assert.strictEqual(
+    rollup.orderCreatedCount,
+    3,
+    'Rollup order count matches raw event counts exactly',
+  );
+  assert.strictEqual(
+    rollup.messageSentCount,
+    1,
+    'Rollup message count matches raw event counts exactly',
+  );
 });
 
 test('Analytics 2: CANCELLED order order_created UsageEvent count is NOT credited back (D-15)', () => {
-  const usageEvents = [
-    { id: 'ue-1', metric: 'order_created', amount: 1 },
-  ];
+  const usageEvents = [{ id: 'ue-1', metric: 'order_created', amount: 1 }];
 
   // Simulating order cancellation event
   const isCancelled = true;
@@ -68,7 +74,11 @@ test('Analytics 4: Analytics API: COMPANY_ADMIN sees only own company rollups (4
 
   // Non-leaking error contract: return 404 Not Found, never 403
   const httpStatus = isCrossTenant ? 404 : 200;
-  assert.strictEqual(httpStatus, 404, 'Cross-tenant company analytics lookup returns 404 Not Found');
+  assert.strictEqual(
+    httpStatus,
+    404,
+    'Cross-tenant company analytics lookup returns 404 Not Found',
+  );
 });
 
 test('Analytics 5: SUPER_ADMIN platform analytics: sees cross-company rollups with audit log', () => {
@@ -96,11 +106,19 @@ test('Analytics 5: SUPER_ADMIN platform analytics: sees cross-company rollups wi
 
 test('Analytics 6: chatpilot_analytics role: raw tenant-table SELECT denied; aggregate views allowed (D-3, D-5)', () => {
   const rawTenantTables = ['orders', 'users', 'customers', 'conversations'];
-  const analyticsRoleAllowedGrants = new Set(['platform_daily_stats', 'company_daily_stats', 'branch_daily_stats']);
+  const analyticsRoleAllowedGrants = new Set([
+    'platform_daily_stats',
+    'company_daily_stats',
+    'branch_daily_stats',
+  ]);
 
   for (const table of rawTenantTables) {
     const hasRawAccess = analyticsRoleAllowedGrants.has(table);
-    assert.strictEqual(hasRawAccess, false, `chatpilot_analytics has no access to raw table "${table}"`);
+    assert.strictEqual(
+      hasRawAccess,
+      false,
+      `chatpilot_analytics has no access to raw table "${table}"`,
+    );
   }
 });
 
@@ -124,10 +142,18 @@ test('Analytics 8: Operational staff financial isolation: KITCHEN, DELIVERY, STA
     assert.ok(caps);
 
     // 1. Must have operational analytics capability
-    assert.strictEqual(caps.has('analytics:operational:read'), true, `${role} has operational read capability`);
+    assert.strictEqual(
+      caps.has('analytics:operational:read'),
+      true,
+      `${role} has operational read capability`,
+    );
 
     // 2. Must be DENIED financial analytics capability (D-14)
-    assert.strictEqual(caps.has('analytics:financial:read'), false, `${role} must be denied financial read capability`);
+    assert.strictEqual(
+      caps.has('analytics:financial:read'),
+      false,
+      `${role} must be denied financial read capability`,
+    );
   }
 
   // 3. Operational response payload verification: strictly zero financial fields
@@ -145,7 +171,19 @@ test('Analytics 8: Operational staff financial isolation: KITCHEN, DELIVERY, STA
   };
 
   const payloadKeys = Object.keys(branchOperationalResponse.operational);
-  assert.strictEqual(payloadKeys.includes('gmvTotal'), false, 'Operational endpoint must not include gmvTotal');
-  assert.strictEqual(payloadKeys.includes('avgOrderValue'), false, 'Operational endpoint must not include avgOrderValue');
-  assert.strictEqual(payloadKeys.includes('revenue'), false, 'Operational endpoint must not include revenue');
+  assert.strictEqual(
+    payloadKeys.includes('gmvTotal'),
+    false,
+    'Operational endpoint must not include gmvTotal',
+  );
+  assert.strictEqual(
+    payloadKeys.includes('avgOrderValue'),
+    false,
+    'Operational endpoint must not include avgOrderValue',
+  );
+  assert.strictEqual(
+    payloadKeys.includes('revenue'),
+    false,
+    'Operational endpoint must not include revenue',
+  );
 });

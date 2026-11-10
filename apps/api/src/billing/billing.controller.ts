@@ -16,10 +16,7 @@ import { ScopeGuard } from '../auth/guards/scope.guard';
 import { RequireCapabilities } from '../auth/decorators/require-caps.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { InteractiveAuthContext } from '@chatpilot/database';
-import {
-  CreatePlanDto,
-  AssignSubscriptionDto,
-} from '@chatpilot/contracts';
+import { CreatePlanDto, AssignSubscriptionDto } from '@chatpilot/contracts';
 
 @Controller('billing')
 @UseGuards(JwtAuthGuard, CapabilitiesGuard, ScopeGuard)
@@ -36,10 +33,7 @@ export class BillingController {
 
   @Post('plans')
   @RequireCapabilities('company:create') // Super Admin privilege
-  async createPlan(
-    @CurrentUser() user: InteractiveAuthContext,
-    @Body() dto: CreatePlanDto,
-  ) {
+  async createPlan(@CurrentUser() user: InteractiveAuthContext, @Body() dto: CreatePlanDto) {
     return this.subscriptionService.createPlan(user, dto);
   }
 

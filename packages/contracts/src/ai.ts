@@ -55,3 +55,17 @@ export interface PendingOrderSummaryDto {
   confirmToken: string;
   expiresAt: Date;
 }
+
+export interface AiConfigResponseDto {
+  provider: string;
+  model: string;
+  systemPromptTemplate: string | null;
+  hasApiKey: boolean;
+}
+
+export interface UpdateAiConfigDto {
+  provider?: string;
+  model?: string;
+  apiKey?: string;
+  systemPromptTemplate?: string;
+}

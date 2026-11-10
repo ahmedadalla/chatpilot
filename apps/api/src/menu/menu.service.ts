@@ -185,11 +185,7 @@ export class MenuService {
     return item;
   }
 
-  async updateItem(
-    callerCtx: InteractiveAuthContext,
-    itemId: string,
-    dto: UpdateMenuItemDto,
-  ) {
+  async updateItem(callerCtx: InteractiveAuthContext, itemId: string, dto: UpdateMenuItemDto) {
     if (callerCtx.role !== Role.COMPANY_ADMIN) {
       throw new ForbiddenException('Only Company Admin can manage menu items');
     }
@@ -222,7 +218,9 @@ export class MenuService {
       data: {
         ...(dto.categoryId && { categoryId: dto.categoryId }),
         ...(dto.name && { name: dto.name.trim() }),
-        ...(dto.description !== undefined && { description: dto.description ? dto.description.trim() : null }),
+        ...(dto.description !== undefined && {
+          description: dto.description ? dto.description.trim() : null,
+        }),
         ...(dto.price !== undefined && { price: dto.price }),
         ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl ? dto.imageUrl.trim() : null }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),

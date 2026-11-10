@@ -10,6 +10,7 @@ statuses remain strictly `PLANNED`.
 ## Errors corrected
 
 ### Final pre-implementation reconciliation fixes:
+
 - **Order state machine & role permissions:**
   - Resolved `STAFF` operational boundaries: `STAFF` is the front-of-house / intake
     operator who accepts or rejects/cancels `PENDING` orders only. Removed stray
@@ -109,6 +110,7 @@ statuses remain strictly `PLANNED`.
   - Replaced all stale references to `A-2` with `Q-REQ-5`.
 
 ### Prior review corrections retained:
+
 - Removed the invalid `DELIVERED → FAILED_DELIVERY` path. `DELIVERED`,
   `CANCELLED`, and `FAILED_DELIVERY` are terminal.
 - Made `FAILED_DELIVERY` reachable only from `OUT_FOR_DELIVERY`, with a required
@@ -134,7 +136,7 @@ The architectural defaults above (D-16 through D-20) have resolved prior operati
 
 - **A-1:** Platform reporting currency (e.g. SAR or USD) and approved FX-rate source / refresh policy (required before Phase 8 billing and reporting rollups).
 - **A-2:** Multi-currency company operational settlement policy if a company operates branches across different currency boundaries (required before Phase 8).
-*(Note: R-1 is confirmed and resolved by Product Owner approval enabling regular QR device pairing in the wizard for clients without Meta Business Accounts).*
+  _(Note: R-1 is confirmed and resolved by Product Owner approval enabling regular QR device pairing in the wizard for clients without Meta Business Accounts)._
 
 ## Tests required before implementation begins
 
