@@ -6,7 +6,7 @@ const REFRESH_COOKIE_NAME = 'cp_rft';
 const isProduction = process.env.NODE_ENV === 'production';
 
 export function getInternalApiUrl(): string {
-  return process.env.INTERNAL_API_URL || 'http://127.0.0.1:4000/api/v1';
+  return process.env.INTERNAL_API_URL || 'http://127.0.0.1:3001/api/v1';
 }
 
 export function setSessionCookies(accessToken: string, refreshToken?: string) {

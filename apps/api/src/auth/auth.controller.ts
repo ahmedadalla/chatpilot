@@ -111,7 +111,6 @@ export class AuthController {
     }
 
     // 2. Clear refresh cookie across both auth and root paths
-    res.clearCookie('cp_rft', { path: '/api/v1/auth' });
     res.clearCookie('cp_rft', { path: '/' });
 
     return { success: true };
