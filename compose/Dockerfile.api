@@ -22,6 +22,5 @@ RUN npm install -g pnpm@9.7.0
 ENV NODE_ENV=production
 ENV NODE_PATH=/app/apps/api/node_modules
 COPY --from=builder /app /app
-RUN pnpm install --frozen-lockfile --prod
 EXPOSE 3001
 CMD ["node", "apps/api/dist/main.js"]
