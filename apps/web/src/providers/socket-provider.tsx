@@ -48,7 +48,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         const { ticket } = await api.get<{ ticket: string }>('/api/socket/token');
         if (isCancelled) return;
 
-        const socketHost = process.env.NEXT_PUBLIC_WS_URL || 'http://127.0.0.1:3001';
+        // Use origin-based fallback so production domains work without explicit env var
+        const socketHost = process.env.NEXT_PUBLIC_WS_URL ||
+          (typeof window !== 'undefined'
+            ? `${window.location.origin.replace(/:\d+$/, ':3001')}`
+            : 'http://127.0.0.1:3001');
 
         const s = io(`${socketHost}/events`, {
           query: { token: ticket },

@@ -25,6 +25,20 @@ interface LoginResponse {
 
 type MfaState = 'none' | 'required' | 'done';
 
+const ROLE_DASHBOARD: Record<Role, string> = {
+  [Role.SUPER_ADMIN]: '/admin/dashboard',
+  [Role.COMPANY_ADMIN]: '/company/dashboard',
+  [Role.BRANCH_MANAGER]: '/branch/dashboard',
+  [Role.KITCHEN]: '/kitchen',
+  [Role.DELIVERY]: '/delivery',
+  [Role.STAFF]: '/staff',
+};
+
+function navigateToDashboard(router: ReturnType<typeof useRouter>, role: Role | undefined, redirectUrl: string | null) {
+  if (redirectUrl) { router.push(redirectUrl); return; }
+  router.push(ROLE_DASHBOARD[role ?? Role.STAFF] ?? '/');
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -56,48 +70,18 @@ function LoginForm() {
 
       const res = await api.post<LoginResponse>('/api/auth/login', body);
 
-      // First pass: credentials OK but MFA required
       if (res.mfaRequired) {
         setMfaState('required');
         setLoading(false);
         return;
       }
 
-      // Second pass: MFA code provided and accepted
       if (mfaState === 'done') {
         await refetchUser();
       }
 
-      if (redirectUrl) {
-        router.push(redirectUrl);
-        return;
-      }
-
-      const role = res.user?.role;
-      switch (role) {
-        case Role.SUPER_ADMIN:
-          router.push('/admin/dashboard');
-          break;
-        case Role.COMPANY_ADMIN:
-          router.push('/company/dashboard');
-          break;
-        case Role.BRANCH_MANAGER:
-          router.push('/branch/dashboard');
-          break;
-        case Role.KITCHEN:
-          router.push('/kitchen');
-          break;
-        case Role.DELIVERY:
-          router.push('/delivery');
-          break;
-        case Role.STAFF:
-          router.push('/staff');
-          break;
-        default:
-          router.push('/');
-      }
+      navigateToDashboard(router, res.user?.role, redirectUrl);
     } catch (err: any) {
-      // If MFA was required and user submitted empty fields, prompt for MFA input
       if (err?.status === 403 && !mfaState) {
         setMfaState('required');
         setLoading(false);
@@ -109,7 +93,6 @@ function LoginForm() {
     }
   };
 
-  // When on 'required' state, this is actually a second submit with the MFA code
   const handleMfaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -123,7 +106,6 @@ function LoginForm() {
       });
 
       if (res.mfaRequired) {
-        // Invalid MFA code — stay on required state
         setError(showRecovery ? 'رمز التعافي غير صالح' : 'كود MFA غير صحيح');
         setLoading(false);
         return;
@@ -131,35 +113,7 @@ function LoginForm() {
 
       setMfaState('done');
       await refetchUser();
-
-      if (redirectUrl) {
-        router.push(redirectUrl);
-        return;
-      }
-
-      const role = res.user?.role;
-      switch (role) {
-        case Role.SUPER_ADMIN:
-          router.push('/admin/dashboard');
-          break;
-        case Role.COMPANY_ADMIN:
-          router.push('/company/dashboard');
-          break;
-        case Role.BRANCH_MANAGER:
-          router.push('/branch/dashboard');
-          break;
-        case Role.KITCHEN:
-          router.push('/kitchen');
-          break;
-        case Role.DELIVERY:
-          router.push('/delivery');
-          break;
-        case Role.STAFF:
-          router.push('/staff');
-          break;
-        default:
-          router.push('/');
-      }
+      navigateToDashboard(router, res.user?.role, redirectUrl);
     } catch (err: any) {
       setError(err?.message || 'فشل التحقق من المصادقة الثنائية');
       setLoading(false);
@@ -269,20 +223,21 @@ function LoginForm() {
                   </div>
                 )}
 
-                <div className="relative">
-                  <Input
-                    label="كود TOTP (6 أرقام)"
-                    type="text"
-                    placeholder="123456"
-                    value={mfaCode}
-                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    maxLength={6}
-                    autoFocus
-                    className="ps-9 tracking-widest text-center text-lg font-mono"
-                    disabled={!showRecovery}
-                  />
-                  <Shield className="absolute start-3 top-8 h-4 w-4 text-slate-400" />
-                </div>
+                {!showRecovery && (
+                  <div className="relative">
+                    <Input
+                      label="كود TOTP (6 أرقام)"
+                      type="text"
+                      placeholder="123456"
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      maxLength={6}
+                      autoFocus
+                      className="ps-9 tracking-widest text-center text-lg font-mono"
+                    />
+                    <Shield className="absolute start-3 top-8 h-4 w-4 text-slate-400" />
+                  </div>
+                )}
 
                 <div className="text-center text-xs text-slate-500">
                   <button
@@ -290,7 +245,7 @@ function LoginForm() {
                     onClick={() => { setShowRecovery(!showRecovery); setError(''); }}
                     className="text-emerald-600 hover:underline"
                   >
-                    {showRecovery ? '← العودة لكود TOTP' : 'استخدام رمز التعافي بدلاً من ذلك'}
+                    {showRecovery ? '← العودة لكود TOTP' : 'استخدام رمز التعافي بدلاُ من ذلك'}
                   </button>
                 </div>
 

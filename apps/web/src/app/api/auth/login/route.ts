@@ -25,6 +25,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ mfaRequired: true });
     }
 
+    // Guard: accessToken must exist before writing cookies
+    if (!data.accessToken) {
+      return NextResponse.json(
+        { code: 'NO_ACCESS_TOKEN', message: 'Login succeeded but no token received' },
+        { status: 500 },
+      );
+    }
+
     const setCookieHeader = apiRes.headers.get('set-cookie');
     let refreshToken: string | undefined = undefined;
     if (setCookieHeader) {

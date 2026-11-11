@@ -56,13 +56,17 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     const code = errorData.code || `HTTP_${response.status}`;
 
     // If session is expired and running in browser, redirect to login
+    // Skip redirect on public pages to avoid redirect loops
     if (
       response.status === 401 &&
       typeof window !== 'undefined' &&
       !url.includes('/api/auth/login')
     ) {
-      if (!window.location.pathname.startsWith('/login')) {
-        window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+      const publicPaths = ['/', '/login', '/reset-password', '/access-denied'];
+      const currentPath = window.location.pathname;
+      const isPublic = publicPaths.some(p => currentPath === p || currentPath.startsWith(p + '/'));
+      if (!isPublic && !currentPath.startsWith('/login')) {
+        window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
       }
     }
 
