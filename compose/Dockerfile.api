@@ -15,11 +15,15 @@ RUN pnpm exec prisma generate --schema=prisma/schema.prisma
 RUN pnpm --filter "./packages/*" build
 RUN pnpm --filter @chatpilot/api build
 
-FROM node:20-alpine AS runner
+FROM base AS runner
 WORKDIR /app
-RUN apk add --no-cache git python3 make g++ libc6-compat openssl
-RUN npm install -g pnpm@9.7.0
 ENV NODE_ENV=production
-COPY --from=builder /app /app
+# Copy only the parts needed for production runtime
+COPY --from=builder /app/apps /app/apps
+COPY --from=builder /app/packages /app/packages
+COPY --from=builder /app/prisma /app/prisma
+COPY --from=builder /app/pnpm-workspace.yaml /app/package.json /app/pnpm-lock.yaml /app/turbo.json /app/
+# Fresh install using the shared .pnpm store from builder — recreates all symlinks
+RUN pnpm install --frozen-lockfile --prod
 EXPOSE 3001
 CMD ["node", "apps/api/dist/main.js"]

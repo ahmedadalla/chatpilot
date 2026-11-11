@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import type { Prisma } from '@chatpilot/database';
 import { PrismaService } from '@chatpilot/database';
 import { TokenService } from './token.service';
 import { randomBytes, createHash } from 'node:crypto';
@@ -34,15 +35,21 @@ export class SessionService {
 
   /**
    * Creates a new AuthSession and initial rotating RefreshToken for an authenticated user.
+   * Pass tx to run inside an existing transaction (e.g. preauth-scope transaction).
    */
-  async createSession(userId: string, permissionsVersion: number): Promise<IssuedSessionTokens> {
+  async createSession(
+    userId: string,
+    permissionsVersion: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<IssuedSessionTokens> {
+    const client = tx ?? this.prisma;
     const rawRefreshToken = this.generateRawRefreshToken();
     const tokenHash = this.hashToken(rawRefreshToken);
     const sessionTtlDays = 7;
     const sessionExpiresAt = new Date(Date.now() + sessionTtlDays * 24 * 60 * 60 * 1000);
     const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    const session = await this.prisma.authSession.create({
+    const session = await client.authSession.create({
       data: {
         userId,
         expiresAt: sessionExpiresAt,

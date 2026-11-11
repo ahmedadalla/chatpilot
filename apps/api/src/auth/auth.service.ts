@@ -44,7 +44,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // 1. Locate user record via SECURITY DEFINER preauth lookup (bypasses RLS safely)
+    // 1. Locate user lite via SECURITY DEFINER preauth lookup (bypasses RLS safely)
     const userRows = await this.prisma.$queryRaw<
       Array<{
         id: string;
@@ -65,100 +65,122 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // Load full user record (with company/branch details) under preauth scope
-    const user = await this.prisma.$transaction(async (tx) => {
+    // 2. Load full user + company/branch details + password verify + session creation
+    //    All inside a single preauth-scope transaction so INSERT into auth_sessions
+    //    (which has owner_only_policy) does not hit RLS.
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT app_set_scope('preauth', NULL, NULL, ${userLite.id}::uuid)`;
-      return tx.user.findUnique({
+
+      const user = await tx.user.findUnique({
         where: { id: userLite.id },
-        include: {
-          company: true,
-          branch: true,
-        },
+        include: { company: true, branch: true },
       });
-    });
 
-    if (!user) {
-      await this.passwordService.dummyVerify();
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    // 2. Constant-time password verification
-    const passwordValid = await this.passwordService.verify(user.passwordHash, password);
-    if (!passwordValid) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    // 3. User account active check
-    if (!user.isActive || (user.deactivatedAt && user.deactivatedAt <= new Date())) {
-      throw new UnauthorizedException('Account is deactivated');
-    }
-
-    // 4. Company status active check
-    if (user.role !== Role.SUPER_ADMIN && user.companyId) {
-      if (!user.company || user.company.status !== CompanyStatus.ACTIVE) {
-        throw new UnauthorizedException('Company account is suspended');
+      if (!user) {
+        // Must stay inside transaction — but cannot throw to abort clean session.
+        // Fallback: run dummy verify outside then throw (scope already lost).
+        // This path is only reached if user record vanished between lookups.
+        return { user: null } as any;
       }
 
-      if (user.branchId && (!user.branch || !user.branch.isActive)) {
-        throw new UnauthorizedException('Assigned branch is deactivated');
-      }
-    }
-
-    // 5. Super Admin TOTP MFA Gate (D-19)
-    if (user.role === Role.SUPER_ADMIN && user.totpSecret) {
-      let mfaPassed = false;
-
-      if (totpCode) {
-        mfaPassed = this.totpService.verifyToken(user.totpSecret, totpCode);
+      // Constant-time password verification (runs inside scope, harmless)
+      const passwordValid = await this.passwordService.verify(user.passwordHash, password);
+      if (!passwordValid) {
+        return { user, passwordValid: false } as any;
       }
 
-      if (!mfaPassed && recoveryCode && Array.isArray(user.totpRecoveryCodes)) {
-        const storedHashedCodes = user.totpRecoveryCodes as string[];
-        const burnResult = this.totpService.verifyAndBurnRecoveryCode(
-          recoveryCode,
-          storedHashedCodes,
-        );
+      // User account active check
+      if (!user.isActive || (user.deactivatedAt && user.deactivatedAt <= new Date())) {
+        return { user, active: false } as any;
+      }
 
-        if (burnResult.isValid) {
-          mfaPassed = true;
-          // Update remaining recovery codes
-          await this.prisma.user.update({
-            where: { id: user.id },
-            data: { totpRecoveryCodes: burnResult.remainingHashedCodes },
-          });
+      // Company status active check
+      if (user.role !== Role.SUPER_ADMIN && user.companyId) {
+        if (!user.company || user.company.status !== CompanyStatus.ACTIVE) {
+          return { user, companyActive: false } as any;
+        }
+        if (user.branchId && (!user.branch || !user.branch.isActive)) {
+          return { user, branchActive: false } as any;
+        }
+      }
+
+      // Super Admin TOTP MFA Gate (D-19)
+      let mfaPassed = true;
+      if (user.role === Role.SUPER_ADMIN && user.totpSecret) {
+        mfaPassed = false;
+        if (totpCode) {
+          mfaPassed = this.totpService.verifyToken(user.totpSecret, totpCode);
+        }
+        if (!mfaPassed && recoveryCode && Array.isArray(user.totpRecoveryCodes)) {
+          const storedHashedCodes = user.totpRecoveryCodes as string[];
+          const burnResult = this.totpService.verifyAndBurnRecoveryCode(
+            recoveryCode,
+            storedHashedCodes,
+          );
+          if (burnResult.isValid) {
+            mfaPassed = true;
+            // Update recovery codes within the same preauth scope
+            await tx.user.update({
+              where: { id: user.id },
+              data: { totpRecoveryCodes: burnResult.remainingHashedCodes },
+            });
+          }
         }
       }
 
       if (!mfaPassed) {
-        // Return mfaRequired flag instead of throwing 403, so frontend can show MFA input
-        const tokens = await this.sessionService.createSession(user.id, user.permissionsVersion);
-        return {
-          tokens,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            role: user.role,
-            companyId: user.companyId,
-            branchId: user.branchId,
-          },
-          mfaRequired: true,
-        } as any;
+        // Create session anyway (token already issued) but flag frontend for MFA step
+        const tokens = await this.sessionService.createSession(user.id, user.permissionsVersion, tx);
+        return { tokens, mfaRequired: true, user } as any;
       }
+
+      // Establish authenticated session & issue tokens (same scope)
+      const tokens = await this.sessionService.createSession(user.id, user.permissionsVersion, tx);
+
+      return { tokens, user } as any;
+    });
+
+    // Handle results from transaction
+    if (result.user === null) {
+      await this.passwordService.dummyVerify();
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    if (result.passwordValid === false) {
+      await this.passwordService.dummyVerify();
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    if (result.active === false) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+    if (result.companyActive === false) {
+      throw new UnauthorizedException('Company account is suspended');
+    }
+    if (result.branchActive === false) {
+      throw new UnauthorizedException('Assigned branch is deactivated');
+    }
+    if (result.mfaRequired) {
+      return {
+        ...result,
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          role: result.user.role,
+          companyId: result.user.companyId,
+          branchId: result.user.branchId,
+        },
+      } as AuthenticateResult & { mfaRequired: boolean };
     }
 
-    // 6. Establish authenticated session & issue tokens
-    const tokens = await this.sessionService.createSession(user.id, user.permissionsVersion);
-
     return {
-      tokens,
+      tokens: result.tokens,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        companyId: user.companyId,
-        branchId: user.branchId,
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+        role: result.user.role,
+        companyId: result.user.companyId,
+        branchId: result.user.branchId,
       },
     };
   }
