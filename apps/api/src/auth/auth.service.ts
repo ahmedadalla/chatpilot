@@ -44,17 +44,40 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    // 1. Locate user record
-    const user = await this.prisma.user.findUnique({
-      where: { email: normalizedEmail },
-      include: {
-        company: true,
-        branch: true,
-      },
+    // 1. Locate user record via SECURITY DEFINER preauth lookup (bypasses RLS safely)
+    const userRows = await this.prisma.$queryRaw<
+      Array<{
+        id: string;
+        email: string;
+        password_hash: string;
+        role: string;
+        company_id: string | null;
+        branch_id: string | null;
+        is_active: boolean;
+        permissions_version: number;
+      }>
+    >`SELECT * FROM lookup_user_by_email(${normalizedEmail})`;
+    const userLite = userRows[0];
+
+    if (!userLite) {
+      // Execute dummy password verification to eliminate timing side channels
+      await this.passwordService.dummyVerify();
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // Load full user record (with company/branch details) under preauth scope
+    const user = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT app_set_scope('preauth', NULL, NULL, ${userLite.id}::uuid)`;
+      return tx.user.findUnique({
+        where: { id: userLite.id },
+        include: {
+          company: true,
+          branch: true,
+        },
+      });
     });
 
     if (!user) {
-      // Execute dummy password verification to eliminate timing side channels
       await this.passwordService.dummyVerify();
       throw new UnauthorizedException('Invalid email or password');
     }
@@ -133,12 +156,15 @@ export class AuthService {
    * Retrieves server-verified identity, role, scope, status and capabilities
    */
   async getMe(userId: string): Promise<MeResponseDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        company: true,
-        branch: true,
-      },
+    const user = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT app_set_scope('preauth', NULL, NULL, ${userId}::uuid)`;
+      return tx.user.findUnique({
+        where: { id: userId },
+        include: {
+          company: true,
+          branch: true,
+        },
+      });
     });
 
     if (!user || !user.isActive) {

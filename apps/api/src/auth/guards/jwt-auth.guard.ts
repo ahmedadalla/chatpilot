@@ -47,13 +47,16 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Session is invalid or has been revoked');
     }
 
-    // 4. Load fresh user record (never trust scope from client)
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      include: {
-        company: true,
-        branch: true,
-      },
+    // 4. Load fresh user record under preauth scope (never trust scope from client)
+    const user = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT app_set_scope('preauth', NULL, NULL, ${payload.sub}::uuid)`;
+      return tx.user.findUnique({
+        where: { id: payload.sub },
+        include: {
+          company: true,
+          branch: true,
+        },
+      });
     });
 
     if (!user || !user.isActive || (user.deactivatedAt && user.deactivatedAt <= new Date())) {

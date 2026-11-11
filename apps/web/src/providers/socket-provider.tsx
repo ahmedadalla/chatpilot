@@ -48,7 +48,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         const { ticket } = await api.get<{ ticket: string }>('/api/socket/token');
         if (isCancelled) return;
 
-        const socketHost = process.env.NEXT_PUBLIC_WS_URL || 'http://127.0.0.1:4000';
+        const socketHost = process.env.NEXT_PUBLIC_WS_URL || 'http://127.0.0.1:3001';
 
         const s = io(`${socketHost}/events`, {
           query: { token: ticket },

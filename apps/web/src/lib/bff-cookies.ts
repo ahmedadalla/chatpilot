@@ -35,11 +35,20 @@ export function setSessionCookies(accessToken: string, refreshToken?: string) {
 
 export function clearSessionCookies() {
   const cookieStore = cookies();
-  cookieStore.delete(ACCESS_COOKIE_NAME);
-  cookieStore.delete(REFRESH_COOKIE_NAME);
-  // Also clear legacy path
-  cookieStore.set(ACCESS_COOKIE_NAME, '', { maxAge: 0, path: '/' });
-  cookieStore.set(REFRESH_COOKIE_NAME, '', { maxAge: 0, path: '/' });
+  cookieStore.set(ACCESS_COOKIE_NAME, '', {
+    maxAge: 0,
+    path: '/',
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+  });
+  cookieStore.set(REFRESH_COOKIE_NAME, '', {
+    maxAge: 0,
+    path: '/',
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+  });
 }
 
 export function getAccessToken(): string | undefined {
