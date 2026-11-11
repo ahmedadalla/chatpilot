@@ -21,6 +21,6 @@ RUN apk add --no-cache openssl libc6-compat
 RUN npm install -g pnpm@9.7.0
 ENV NODE_ENV=production
 COPY --from=builder /app /app
-RUN cd /app/apps/api && node_modules/.bin/pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod --frozen-lockfile
 EXPOSE 3001
 CMD ["node", "apps/api/dist/main.js"]
