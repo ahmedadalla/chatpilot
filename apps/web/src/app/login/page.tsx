@@ -15,7 +15,15 @@ import {
   CardContent,
 } from '../../components/ui/card';
 import { Role } from '@chatpilot/contracts';
-import { Lock, Mail, Eye, EyeOff, Globe } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, Globe, Shield } from 'lucide-react';
+
+interface LoginResponse {
+  accessToken?: string;
+  user?: { role: Role };
+  mfaRequired?: boolean;
+}
+
+type MfaState = 'none' | 'required' | 'done';
 
 function LoginForm() {
   const router = useRouter();
@@ -28,8 +36,12 @@ function LoginForm() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
+  const [mfaCode, setMfaCode] = React.useState('');
+  const [mfaRecoveryCode, setMfaRecoveryCode] = React.useState('');
+  const [showRecovery, setShowRecovery] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [mfaState, setMfaState] = React.useState<MfaState>('none');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,20 +49,31 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const res = await api.post<{ success: boolean; user: { role: Role } }>('/api/auth/login', {
-        email: email.trim(),
-        password,
-      });
+      const body: Record<string, unknown> = { email: email.trim(), password };
+      if (mfaState === 'done') {
+        body.totpCode = mfaCode;
+      }
 
-      await refetchUser();
+      const res = await api.post<LoginResponse>('/api/auth/login', body);
+
+      // First pass: credentials OK but MFA required
+      if (res.mfaRequired) {
+        setMfaState('required');
+        setLoading(false);
+        return;
+      }
+
+      // Second pass: MFA code provided and accepted
+      if (mfaState === 'done') {
+        await refetchUser();
+      }
 
       if (redirectUrl) {
         router.push(redirectUrl);
         return;
       }
 
-      // Role-specific redirect
-      const role = res.user.role;
+      const role = res.user?.role;
       switch (role) {
         case Role.SUPER_ADMIN:
           router.push('/admin/dashboard');
@@ -74,10 +97,71 @@ function LoginForm() {
           router.push('/');
       }
     } catch (err: any) {
-      setError(
-        err?.message || 'فشل تسجيل الدخول. يرجى التأكد من صحة البريد الإلكتروني وكلمة المرور.',
-      );
+      // If MFA was required and user submitted empty fields, prompt for MFA input
+      if (err?.status === 403 && !mfaState) {
+        setMfaState('required');
+        setLoading(false);
+        return;
+      }
+      setError(err?.message || 'فشل تسجيل الدخول. يرجى التأكد من صحة البريد الإلكتروني وكلمة المرور.');
     } finally {
+      if (!mfaState || mfaState === 'done') setLoading(false);
+    }
+  };
+
+  // When on 'required' state, this is actually a second submit with the MFA code
+  const handleMfaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await api.post<LoginResponse>('/api/auth/login', {
+        email: email.trim(),
+        password,
+        ...(showRecovery ? { recoveryCode: mfaRecoveryCode } : { totpCode: mfaCode }),
+      });
+
+      if (res.mfaRequired) {
+        // Invalid MFA code — stay on required state
+        setError(showRecovery ? 'رمز التعافي غير صالح' : 'كود MFA غير صحيح');
+        setLoading(false);
+        return;
+      }
+
+      setMfaState('done');
+      await refetchUser();
+
+      if (redirectUrl) {
+        router.push(redirectUrl);
+        return;
+      }
+
+      const role = res.user?.role;
+      switch (role) {
+        case Role.SUPER_ADMIN:
+          router.push('/admin/dashboard');
+          break;
+        case Role.COMPANY_ADMIN:
+          router.push('/company/dashboard');
+          break;
+        case Role.BRANCH_MANAGER:
+          router.push('/branch/dashboard');
+          break;
+        case Role.KITCHEN:
+          router.push('/kitchen');
+          break;
+        case Role.DELIVERY:
+          router.push('/delivery');
+          break;
+        case Role.STAFF:
+          router.push('/staff');
+          break;
+        default:
+          router.push('/');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'فشل التحقق من المصادقة الثنائية');
       setLoading(false);
     }
   };
@@ -106,72 +190,133 @@ function LoginForm() {
 
         <Card className="shadow-lg border-slate-200/80">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl font-bold">تسجيل الدخول</CardTitle>
+            <CardTitle className="text-xl font-bold">
+              {mfaState === 'required' ? 'المصادقة الثنائية' : 'تسجيل الدخول'}
+            </CardTitle>
             <CardDescription className="text-xs">
-              أدخل بيانات حسابك للمتابعة إلى لوحة التحكم الخاصة بك
+              {mfaState === 'required'
+                ? 'أدخل كود TOTP أو رمز التعافي لتأكيد الهوية'
+                : 'أدخل بيانات حسابك للمتابعة إلى لوحة التحكم الخاصة بك'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <div className="rounded-lg bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200 font-medium">
-                  {error}
+            {mfaState !== 'required' ? (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="rounded-lg bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200 font-medium">
+                    {error}
+                  </div>
+                )}
+
+                <div className="relative">
+                  <Input
+                    label="البريد الإلكتروني"
+                    type="email"
+                    placeholder="admin@restaurant.eg"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    className="ps-9"
+                  />
+                  <Mail className="absolute start-3 top-8 h-4 w-4 text-slate-400" />
                 </div>
-              )}
 
-              <div className="relative">
-                <Input
-                  label="البريد الإلكتروني"
-                  type="email"
-                  placeholder="admin@restaurant.eg"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  className="ps-9"
-                />
-                <Mail className="absolute start-3 top-8 h-4 w-4 text-slate-400" />
-              </div>
+                <div className="relative">
+                  <Input
+                    label="كلمة المرور"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                    className="ps-9 pe-9"
+                  />
+                  <Lock className="absolute start-3 top-8 h-4 w-4 text-slate-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute end-3 top-8 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
 
-              <div className="relative">
-                <Input
-                  label="كلمة المرور"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                  className="ps-9 pe-9"
-                />
-                <Lock className="absolute start-3 top-8 h-4 w-4 text-slate-400" />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute end-3 top-8 text-slate-400 hover:text-slate-600"
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <button
+                    type="button"
+                    onClick={() => router.push('/reset-password')}
+                    className="text-emerald-600 hover:underline font-semibold"
+                  >
+                    نسيت كلمة المرور؟
+                  </button>
+                </div>
+
+                <Button
+                  type="submit"
+                  loading={loading}
+                  className="w-full h-11 text-base font-bold mt-2"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+                  دخول إلى الحساب
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleMfaSubmit} className="space-y-4">
+                {error && (
+                  <div className="rounded-lg bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200 font-medium">
+                    {error}
+                  </div>
+                )}
 
-              <div className="flex items-center justify-between text-xs pt-1">
-                <button
-                  type="button"
-                  onClick={() => router.push('/reset-password')}
-                  className="text-emerald-600 hover:underline font-semibold"
+                <div className="relative">
+                  <Input
+                    label="كود TOTP (6 أرقام)"
+                    type="text"
+                    placeholder="123456"
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    maxLength={6}
+                    autoFocus
+                    className="ps-9 tracking-widest text-center text-lg font-mono"
+                    disabled={!showRecovery}
+                  />
+                  <Shield className="absolute start-3 top-8 h-4 w-4 text-slate-400" />
+                </div>
+
+                <div className="text-center text-xs text-slate-500">
+                  <button
+                    type="button"
+                    onClick={() => { setShowRecovery(!showRecovery); setError(''); }}
+                    className="text-emerald-600 hover:underline"
+                  >
+                    {showRecovery ? '← العودة لكود TOTP' : 'استخدام رمز التعافي بدلاً من ذلك'}
+                  </button>
+                </div>
+
+                {showRecovery && (
+                  <div className="relative">
+                    <Input
+                      label="رمز التعافي"
+                      type="text"
+                      placeholder="XXXX-XXXX-XXXX"
+                      value={mfaRecoveryCode}
+                      onChange={(e) => setMfaRecoveryCode(e.target.value)}
+                      autoFocus
+                      className="ps-9 tracking-wider font-mono"
+                    />
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  loading={loading}
+                  className="w-full h-11 text-base font-bold mt-2"
                 >
-                  نسيت كلمة المرور؟
-                </button>
-              </div>
-
-              <Button
-                type="submit"
-                loading={loading}
-                className="w-full h-11 text-base font-bold mt-2"
-              >
-                دخول إلى الحساب
-              </Button>
-            </form>
+                  تحقق وتسجيل الدخول
+                </Button>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>

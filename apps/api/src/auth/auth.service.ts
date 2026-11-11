@@ -130,9 +130,20 @@ export class AuthService {
       }
 
       if (!mfaPassed) {
-        throw new ForbiddenException(
-          'Super Admin login requires valid TOTP MFA code or recovery code',
-        );
+        // Return mfaRequired flag instead of throwing 403, so frontend can show MFA input
+        const tokens = await this.sessionService.createSession(user.id, user.permissionsVersion);
+        return {
+          tokens,
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            companyId: user.companyId,
+            branchId: user.branchId,
+          },
+          mfaRequired: true,
+        } as any;
       }
     }
 

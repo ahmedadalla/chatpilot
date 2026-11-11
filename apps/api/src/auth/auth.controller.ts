@@ -60,6 +60,7 @@ export class AuthController {
     return {
       accessToken: result.tokens.accessToken,
       user: result.user,
+      mfaRequired: (result as any).mfaRequired,
     };
   }
 

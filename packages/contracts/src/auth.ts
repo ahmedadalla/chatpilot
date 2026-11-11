@@ -19,6 +19,7 @@ export interface AuthUserResponse {
 export interface LoginResponse {
   accessToken: string;
   user: AuthUserResponse;
+  mfaRequired?: boolean;
 }
 
 export interface RefreshTokenResponse {
