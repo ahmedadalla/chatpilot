@@ -17,11 +17,9 @@ RUN pnpm --filter @chatpilot/api build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
-RUN apk add --no-cache openssl libc6-compat
+RUN apk add --no-cache git python3 make g++ libc6-compat openssl
 RUN npm install -g pnpm@9.7.0
 ENV NODE_ENV=production
-ENV NODE_PATH=/app/node_modules
 COPY --from=builder /app /app
-RUN rm -rf /app/node_modules /app/apps/*/node_modules /app/packages/*/node_modules && pnpm install --prod --frozen-lockfile
 EXPOSE 3001
 CMD ["node", "apps/api/dist/main.js"]
