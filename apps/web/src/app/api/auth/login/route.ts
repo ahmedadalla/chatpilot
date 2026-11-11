@@ -20,7 +20,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(data, { status: apiRes.status });
     }
 
-    // Extract refresh token from Set-Cookie header or response
+    // If MFA required, return without setting cookies so frontend can show MFA form
+    if (data.mfaRequired) {
+      return NextResponse.json({ mfaRequired: true });
+    }
+
     const setCookieHeader = apiRes.headers.get('set-cookie');
     let refreshToken: string | undefined = undefined;
     if (setCookieHeader) {
@@ -31,7 +35,7 @@ export async function POST(req: NextRequest) {
     setSessionCookies(data.accessToken, refreshToken);
 
     return NextResponse.json({
-      success: true,
+      accessToken: data.accessToken,
       user: data.user,
     });
   } catch (err: unknown) {

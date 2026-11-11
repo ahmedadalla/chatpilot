@@ -84,7 +84,7 @@ export default function HomePage() {
         </h1>
 
         <p className="mt-6 text-base sm:text-lg text-slate-400 max-w-2xl leading-relaxed">
-          نظام متكامل وشامل لإدارة الطلبات، شاشات المطبخ، والتوصيل، مع دعم المحادثات الذكية عبر
+          نظام متكامل وشامل لإدارة الطلبات، شاشات المطبخ， والتوصيل， مع دعم المحادثات الذكية عبر
           واتساب والذكاء الاصطناعي بدقة وموثوقية فائقة.
         </p>
 
@@ -122,7 +122,7 @@ export default function HomePage() {
             </div>
             <h3 className="font-bold text-white text-base">عمليات تشغيل فورية</h3>
             <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-              شاشات ذكية للمطبخ والمندوبين تعمل لحظياً عبر Socket.IO لتحديث حالات الطلبات بدقة.
+              شاشات ذكية للمطبخ والمندوبين تعمل لحظياٌ عبر Socket.IO لتحديث حالات الطلبات بدقة.
             </p>
           </div>
 
