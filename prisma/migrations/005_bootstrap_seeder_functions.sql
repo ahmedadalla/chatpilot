@@ -3,6 +3,9 @@
 -- These functions run as chatpilot_migrator (table owner, bypasses RLS)
 -- to allow initial super admin creation when no tenant scope is set.
 
+-- Ensure UUID generation is available
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- 1. Platform-level super admin lookup (replaces prisma.user.findFirst with RLS)
 CREATE OR REPLACE FUNCTION platform_find_super_admin(p_email text)
 RETURNS TABLE (
@@ -40,6 +43,7 @@ $$;
 GRANT EXECUTE ON FUNCTION platform_find_super_admin(text) TO chatpilot_app;
 
 -- 2. Privileged super admin creator (bypasses RLS INSERT restrictions)
+-- Sets explicit platform scope and generates UUID before INSERT to avoid RLS issues.
 CREATE OR REPLACE FUNCTION superadmin_create_user(
   p_email text,
   p_name text,
@@ -60,15 +64,25 @@ BEGIN
     RAISE EXCEPTION 'password hash required';
   END IF;
 
+  -- Set explicit platform scope so RLS allows the INSERT
+  PERFORM set_config('app.scope', 'platform', true);
+  PERFORM set_config('app.company_id', '', true);
+  PERFORM set_config('app.branch_id', '', true);
+  PERFORM set_config('app.user_id', '', true);
+
+  -- Generate UUID explicitly since set_config resets GUCs inside SECURITY DEFINER
+  new_id := gen_random_uuid();
+
   INSERT INTO users (
+    id,
     email, name, "passwordHash", role,
     "platformCapable", "isActive", "isVerified",
     "permissionsVersion", "totpSecret", "totpRecoveryCodes"
   ) VALUES (
+    new_id,
     lower(trim(p_email)), p_name, p_password_hash, 'SUPER_ADMIN',
     true, true, true, 1, p_totp_secret, p_totp_recovery_codes
-  )
-  RETURNING id INTO new_id;
+  );
 
   RETURN new_id;
 END;
