@@ -36,3 +36,4 @@ Thumbs.db
 # Coverage
 coverage/
 .nyc_output/
+# Build artifacts (pre-built for environments without TypeScript toolchain)

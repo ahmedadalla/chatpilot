@@ -437,10 +437,17 @@ _Expected Output:_ `count: 0` (even if companies exist, the absence of tenant GU
 
 ### 6.6 Seed Initial Super Admin Account
 
-The `.env.production` file must already contain `BOOTSTRAP_OVERRIDE=true`. The compiled `dist/seed/bootstrap-super-admin.js` is included in the repo — no build step is needed:
+The `.env.production` file must already contain `BOOTSTRAP_OVERRIDE=true`. First build the API image (required — the seed script is compiled into `dist/`):
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm api node apps/api/dist/seed/bootstrap-super-admin.js
+cd /opt/chatpilot
+docker compose -f docker-compose.prod.yml build api
+```
+
+Then run the compiled seed script directly (bypasses pnpm resolver which needs TypeScript not present in production images):
+
+```bash
+BOOTSTRAP_OVERRIDE=true docker compose -f docker-compose.prod.yml run --rm api node apps/api/dist/seed/bootstrap-super-admin.js
 ```
 
 _If you need to force-reset an existing admin_:
