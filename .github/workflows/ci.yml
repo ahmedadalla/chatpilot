@@ -10,6 +10,29 @@ jobs:
   verify:
     name: Build, Lint Gates & Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector-pg17:latest
+        env:
+          POSTGRES_DB: chatpilot_test
+          POSTGRES_USER: chatpilot_migrator
+          POSTGRES_PASSWORD: test_secret
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - "6379:6379"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,14 +60,33 @@ jobs:
       - name: TypeScript Strict Typecheck
         run: pnpm typecheck
 
+      - name: Prisma Generate & Validate
+        run: |
+          export DATABASE_URL=postgresql://chatpilot_migrator:test_secret@localhost:5432/chatpilot_test?schema=public
+          pnpm --filter @chatpilot/database prisma generate
+          pnpm --filter @chatpilot/database prisma validate
+
+      - name: Run Database Migrations
+        run: |
+          export DATABASE_URL=postgresql://chatpilot_migrator:test_secret@localhost:5432/chatpilot_test?schema=public
+          pnpm --filter @chatpilot/database prisma migrate deploy
+        env:
+          SKIP_MIGRATIONS: false
+
       - name: Unit Tests
         run: pnpm test:unit
 
       - name: Integration Test Suites (RLS, Auth, Isolation, Orders, WhatsApp, AI, Analytics)
         run: pnpm test:integration
+        env:
+          DATABASE_URL: postgresql://chatpilot_migrator:test_secret@localhost:5432/chatpilot_test?schema=public
+          REDIS_URL: redis://localhost:6379
 
       - name: End-to-End Scenarios Test Suite
         run: pnpm test:e2e
+        env:
+          DATABASE_URL: postgresql://chatpilot_migrator:test_secret@localhost:5432/chatpilot_test?schema=public
+          REDIS_URL: redis://localhost:6379
 
       - name: Build Monorepo Workspaces
         run: pnpm build

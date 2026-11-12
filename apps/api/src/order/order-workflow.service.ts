@@ -393,6 +393,7 @@ export class OrderWorkflowService {
     reasonText?: string,
   ): Promise<OrderResponseDto> {
     // 1. Same-Actor Replay Check: If this actor already executed this action, return stored result (200 OK)
+    // Staleness guard: token older than 5 minutes is considered stale — re-run transition for fresh state
     const existingToken = await this.prisma.orderTransitionToken.findUnique({
       where: {
         orderId_action_actorUserId: {
@@ -404,7 +405,11 @@ export class OrderWorkflowService {
     });
 
     if (existingToken && existingToken.result) {
-      return existingToken.result as unknown as OrderResponseDto;
+      const tokenAgeMs = Date.now() - existingToken.createdAt.getTime();
+      if (tokenAgeMs < 5 * 60 * 1000) {
+        return existingToken.result as unknown as OrderResponseDto;
+      }
+      // Stale token — fall through to execute fresh transition
     }
 
     return this.prisma.$transaction(async (tx) => {

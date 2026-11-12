@@ -156,7 +156,6 @@ model Branch {
   usageEvents            UsageEvent[]
 
   @@unique([companyId, code])
-  @@unique([companyId, id]) // Composite unique serving as backstop for composite FKs
   @@index([companyId])
   @@map("branches")
 }

@@ -38,11 +38,13 @@ export const PURPOSE_PERMISSIONS: Record<
 @Injectable()
 export class FileService {
   private readonly s3Bucket: string;
-  private readonly s3Endpoint: string;
+  private readonly s3Endpoint: string | undefined;
 
   constructor(private readonly prisma: PrismaService) {
     this.s3Bucket = process.env['S3_BUCKET'] || 'chatpilot-uploads';
-    this.s3Endpoint = process.env['S3_ENDPOINT'] || 'https://storage.chatpilot.io';
+    // No hardcoded fallback — S3_ENDPOINT must be configured for production use.
+    // Leave undefined for dev environments that may not have object storage.
+    this.s3Endpoint = process.env['S3_ENDPOINT'];
   }
 
   /**

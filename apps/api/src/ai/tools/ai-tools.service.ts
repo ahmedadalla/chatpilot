@@ -3,6 +3,7 @@ import { PrismaService, InteractiveAuthContext } from '@chatpilot/database';
 import { AvailabilityResolutionService } from '../../menu/availability-resolution.service';
 import { PendingOrderService } from './pending-order.service';
 import { OrderWorkflowService } from '../../order/order-workflow.service';
+import { KbRetrievalService } from '../../kb/kb-retrieval.service';
 import { PendingOrderSummaryDto, PendingCartLineDto, OrderResponseDto } from '@chatpilot/contracts';
 
 @Injectable()
@@ -12,6 +13,7 @@ export class AiToolsService {
     private readonly availabilityResolutionService: AvailabilityResolutionService,
     private readonly pendingOrderService: PendingOrderService,
     private readonly orderWorkflowService: OrderWorkflowService,
+    private readonly kbRetrievalService: KbRetrievalService,
   ) {}
 
   /**
@@ -147,16 +149,13 @@ export class AiToolsService {
   }
 
   /**
-   * search_knowledge tool: Tenant-scoped search enforcing company_id filter before vector retrieval
+   * search_knowledge tool: Tenant-scoped vector search via KbRetrievalService (ARCHITECTURE.md §7.5)
    */
-  async searchKnowledge(companyId: string, branchId: string | null, query: string) {
-    return this.prisma.knowledgeChunk.findMany({
-      where: {
-        companyId,
-        ...(branchId ? { OR: [{ branchId: null }, { branchId }] } : { branchId: null }),
-        content: { contains: query, mode: 'insensitive' },
-      },
-      take: 5,
-    });
+  async searchKnowledge(
+    callerCtx: InteractiveAuthContext,
+    query: string,
+    limit = 5,
+  ) {
+    return this.kbRetrievalService.search(callerCtx, query, undefined, limit);
   }
 }

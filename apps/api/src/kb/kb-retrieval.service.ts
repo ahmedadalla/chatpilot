@@ -36,7 +36,7 @@ export class KbRetrievalService {
     const queryVector = await this.embeddingService.generateEmbedding(query);
     const vectorString = this.embeddingService.formatVectorForPg(queryVector);
 
-    // 2. Execute parameterized query with tuned hnsw.ef_search within ScopedPrisma
+    // 2. Execute parameterized vector similarity query using cosine distance (<=>)
     const rawResults = await this.prisma.$queryRaw<RawChunkQueryResult[]>`
       SELECT
         kc.id,
@@ -44,11 +44,12 @@ export class KbRetrievalService {
         kc.metadata,
         kd.id AS document_id,
         kd.title,
-        0.05::float8 AS score
+        (kc.embedding <=> ${vectorString}::vector) AS score
       FROM knowledge_chunks kc
       JOIN knowledge_base_documents kd ON kd.id = kc.document_id
       WHERE kd.company_id = ${companyId}::uuid
         AND (${targetBranchId}::uuid IS NULL OR kd.branch_id IS NULL OR kd.branch_id = ${targetBranchId}::uuid)
+      ORDER BY score ASC
       LIMIT ${limit};
     `;
 

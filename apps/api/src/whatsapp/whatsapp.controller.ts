@@ -25,6 +25,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { InteractiveAuthContext } from '@chatpilot/database';
 import { SetupWhatsAppConnectionDto, WhatsAppProviderType } from '@chatpilot/contracts';
+import pino from 'pino';
+
+const logger = pino({ name: 'whatsapp-controller' });
 
 @Controller()
 export class WhatsAppController {
@@ -45,41 +48,56 @@ export class WhatsAppController {
     @Headers('x-hub-signature-256') signature: string,
     @Body() payload: any,
     @Req() req: Request,
+    @Res() res: Response,
   ) {
-    // 1. Narrow pre-auth lookup for the connection
-    const connection = await this.prisma.whatsAppConnection.findFirst({
-      where: { businessConnectionId },
+    // Return 200 immediately; process asynchronously to avoid provider timeout
+    let promise: Promise<any>;
+    try {
+      // 1. Narrow pre-auth lookup for the connection
+      const connection = await this.prisma.whatsAppConnection.findFirst({
+        where: { businessConnectionId },
+      });
+
+      if (!connection) {
+        // Return 200 to satisfy provider webhook contracts without exposing internal errors
+        return res.status(200).json({ status: 'acknowledged', actionTaken: 'QUARANTINE_UNKNOWN_CONNECTION' });
+      }
+
+      // 2. Timing-safe HMAC signature verification
+      const webhookSecret = connection.webhookSecretRef || 'default_local_webhook_secret_for_tests';
+      const rawBodyBuffer = Buffer.isBuffer(req.body)
+        ? req.body
+        : Buffer.from(JSON.stringify(payload || {}));
+
+      if (signature) {
+        const isValid = MetaCloudApiAdapter.verifySignature(rawBodyBuffer, signature, webhookSecret);
+        if (!isValid) {
+          return res.status(200).json({ status: 'acknowledged', actionTaken: 'INVALID_SIGNATURE' });
+        }
+      }
+
+      // 3. Extract normalized message event
+      const messageEvent = {
+        provider: connection.provider,
+        providerMessageId: payload.messageId || `msg_${Date.now()}`,
+        businessConnectionId,
+        senderPhone: payload.fromPhone || '+201012345678',
+        timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+        text: payload.text || payload.body,
+      };
+
+      promise = this.whatsAppService.handleInboundMessage(connection.id, messageEvent);
+    } catch (webhookErr: unknown) {
+      logger.error({ err: webhookErr }, 'Unhandled error in WhatsApp webhook handler');
+      return res.status(200).json({ status: 'acknowledged', actionTaken: 'INTERNAL_ERROR' });
+    }
+
+    // Fire-and-forget: resolve silently, log on failure
+    promise.catch((err: unknown) => {
+      logger.error({ err }, 'Error processing WhatsApp inbound message');
     });
 
-    if (!connection) {
-      // Return 200 to satisfy provider webhook contracts without exposing internal errors
-      return { status: 'acknowledged', actionTaken: 'QUARANTINE_UNKNOWN_CONNECTION' };
-    }
-
-    // 2. Timing-safe HMAC signature verification
-    const webhookSecret = connection.webhookSecretRef || 'default_local_webhook_secret_for_tests';
-    const rawBodyBuffer = Buffer.isBuffer(req.body)
-      ? req.body
-      : Buffer.from(JSON.stringify(payload || {}));
-
-    if (signature) {
-      const isValid = MetaCloudApiAdapter.verifySignature(rawBodyBuffer, signature, webhookSecret);
-      if (!isValid) {
-        throw new UnauthorizedException('Invalid webhook signature');
-      }
-    }
-
-    // 3. Extract normalized message event
-    const messageEvent = {
-      provider: connection.provider,
-      providerMessageId: payload.messageId || `msg_${Date.now()}`,
-      businessConnectionId,
-      senderPhone: payload.fromPhone || '+201012345678',
-      timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
-      text: payload.text || payload.body,
-    };
-
-    return this.whatsAppService.handleInboundMessage(connection.id, messageEvent);
+    return res.status(200).json({ status: 'acknowledged', actionTaken: 'ACCEPTED' });
   }
 
   /**

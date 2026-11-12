@@ -98,9 +98,9 @@ services:
     env_file:
       - ${ENV_FILE:-.env.production}
     environment:
-      PORT: "3000"
+      PORT: ${WEB_PORT:-3000}
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
     depends_on:
       api:
         condition: service_healthy

@@ -1,7 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from '@chatpilot/database';
 import { PasswordService } from './password.service';
-import { PermissionVersionService } from './permission-version.service';
 import { randomBytes, createHash } from 'node:crypto';
 
 @Injectable()
@@ -9,7 +8,6 @@ export class PasswordResetService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwordService: PasswordService,
-    private readonly permissionVersionService: PermissionVersionService,
   ) {}
 
   private hashToken(token: string): string {
@@ -62,6 +60,9 @@ export class PasswordResetService {
   async completeReset(rawToken: string, newPassword: string): Promise<void> {
     if (!rawToken || !newPassword) {
       throw new UnauthorizedException('Missing token or password');
+    }
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      throw new UnauthorizedException('Password must be at least 8 characters long');
     }
 
     const tokenHash = this.hashToken(rawToken);

@@ -15,9 +15,7 @@ import { Role, OrderStatus, OrderSocketEventPayload } from '@chatpilot/contracts
 const logger = pino({ name: 'order-events-gateway' });
 
 @WebSocketGateway({
-  cors: {
-    origin: '*',
-  },
+  cors: process.env['NODE_ENV'] === 'production' ? { origin: false } : true,
   namespace: '/events',
 })
 export class OrderEventsGateway implements OnGatewayConnection, OnGatewayDisconnect {

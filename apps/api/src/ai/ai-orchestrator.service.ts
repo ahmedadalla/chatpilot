@@ -1,16 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { GeminiAdapter } from './providers/gemini.adapter';
-import { AiToolsService } from './tools/ai-tools.service';
 import pino from 'pino';
 
 const logger = pino({ name: 'ai-orchestrator-service' });
 
 @Injectable()
 export class AiOrchestratorService {
-  constructor(
-    private readonly geminiAdapter: GeminiAdapter,
-    private readonly aiToolsService: AiToolsService,
-  ) {}
 
   /**
    * Constructs anti-injection prompt and wraps untrusted user data in <data> tags (ARCHITECTURE.md §7.3)

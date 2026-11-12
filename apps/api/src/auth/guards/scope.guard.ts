@@ -1,9 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, ExecutionContext } from '@nestjs/common';
 import { InteractiveAuthContext } from '@chatpilot/database';
 import { Role } from '@chatpilot/contracts';
 
 @Injectable()
-export class ScopeGuard implements CanActivate {
+export class ScopeGuard {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const authContext = request.authContext as InteractiveAuthContext | undefined;
@@ -19,14 +19,14 @@ export class ScopeGuard implements CanActivate {
 
     const { companyId, branchId } = request.params;
 
-    // Check company scope: Cross-tenant attempts return 404 Not Found (AUTHORIZATION_MODEL.md §4)
+    // Block cross-tenant access with 403 Forbidden to avoid resource enumeration
     if (companyId && companyId !== authContext.companyId) {
-      throw new NotFoundException('Resource not found');
+      throw new ForbiddenException('Access denied');
     }
 
     // Check branch scope for branch roles
     if (branchId && authContext.branchId && branchId !== authContext.branchId) {
-      throw new NotFoundException('Resource not found');
+      throw new ForbiddenException('Access denied');
     }
 
     return true;

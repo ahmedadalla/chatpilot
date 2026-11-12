@@ -108,6 +108,18 @@ export class MenuService {
         where: { categoryId },
         data: { isActive: false },
       });
+
+      // Deactivate branch availability overrides for archived items
+      const childItems = await tx.menuItem.findMany({
+        where: { categoryId },
+        select: { id: true },
+      });
+      if (childItems.length > 0) {
+        await tx.menuItemAvailability.updateMany({
+          where: { menuItemId: { in: childItems.map((i) => i.id) } },
+          data: { isAvailable: false },
+        });
+      }
     });
   }
 

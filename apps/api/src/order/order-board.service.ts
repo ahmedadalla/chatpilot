@@ -98,10 +98,16 @@ export class OrderBoardService {
   ): Promise<OrderResponseDto[]> {
     const targetBranchId = callerCtx.branchId || branchId;
 
-    // DELIVERY role constraint: only READY_FOR_DELIVERY and OUT_FOR_DELIVERY
+    // DELIVERY role constraint: allowed statuses for both list and detail views
+    const deliveryAllowedStatuses = [
+      OrderStatus.READY_FOR_DELIVERY,
+      OrderStatus.OUT_FOR_DELIVERY,
+      OrderStatus.DELIVERED,
+      OrderStatus.FAILED_DELIVERY,
+    ];
     let allowedStatuses: OrderStatus[] | undefined = undefined;
     if (callerCtx.role === Role.DELIVERY) {
-      allowedStatuses = [OrderStatus.READY_FOR_DELIVERY, OrderStatus.OUT_FOR_DELIVERY];
+      allowedStatuses = deliveryAllowedStatuses;
     } else if (statusFilter) {
       allowedStatuses = [statusFilter];
     }

@@ -20,5 +20,8 @@ WORKDIR /app
 RUN apk add --no-cache openssl libc6-compat
 ENV NODE_ENV=production
 COPY --from=builder /app /app
+COPY compose/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 EXPOSE 3002
 CMD ["node", "apps/whatsapp-worker/dist/main.js"]

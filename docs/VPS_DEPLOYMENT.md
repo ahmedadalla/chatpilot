@@ -699,9 +699,13 @@ git checkout <PREVIOUS_COMMIT_HASH>
 docker compose -f docker-compose.prod.yml up -d --build
 
 # 3. If database restore is required due to schema changes:
-# docker compose -f docker-compose.prod.yml stop api worker whatsapp-worker web
-# /opt/chatpilot/scripts/restore.sh /var/backups/chatpilot/chatpilot_backup_YYYYMMDD.dump
-# docker compose -f docker-compose.prod.yml start api worker whatsapp-worker web
+#   # Restore from backup:
+#   docker compose -f docker-compose.prod.yml stop api worker whatsapp-worker web
+#   docker cp /var/backups/chatpilot/chatpilot_backup_YYYYMMDD.dump chatpilot-postgres:/tmp/restore.dump
+#   docker exec chatpilot-postgres pg_restore -U chatpilot_migrator -d chatpilot --clean --if-exists /tmp/restore.dump
+#   docker rm -f chatpilot-postgres
+#   docker run -d --name chatpilot-postgres <postgres-image> ...
+#   docker compose -f docker-compose.prod.yml start api worker whatsapp-worker web
 ```
 
 ---

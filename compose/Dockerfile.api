@@ -15,7 +15,7 @@ RUN pnpm exec prisma generate --schema=prisma/schema.prisma
 RUN pnpm --filter "./packages/*" build
 RUN pnpm --filter @chatpilot/api build
 
-FROM base AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 # Copy only the parts needed for production runtime
@@ -26,4 +26,7 @@ COPY --from=builder /app/pnpm-workspace.yaml /app/package.json /app/pnpm-lock.ya
 # Fresh install using the shared .pnpm store from builder — recreates all symlinks
 RUN pnpm install --frozen-lockfile --prod
 EXPOSE 3001
+COPY compose/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "apps/api/dist/main.js"]

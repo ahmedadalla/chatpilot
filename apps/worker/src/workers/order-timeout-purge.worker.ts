@@ -24,57 +24,62 @@ export class OrderTimeoutPurgeWorker {
 
     let totalPurged = 0;
 
-    for (const branch of branches) {
-      // Default timeout is 15 minutes
-      const timeoutMinutes = 15;
-      const cutoffTime = new Date(Date.now() - timeoutMinutes * 60 * 1000);
+    // Parallelize branch processing (cap at 10 concurrent)
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < branches.length; i += BATCH_SIZE) {
+      const batch = branches.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (branch) => {
+          const timeoutMinutes = 15;
+          const cutoffTime = new Date(Date.now() - timeoutMinutes * 60 * 1000);
 
-      // Single conditional UPDATE: first writer wins
-      const staleOrders = await this.prisma.order.findMany({
-        where: {
-          branchId: branch.id,
-          status: OrderStatus.PENDING,
-          createdAt: { lt: cutoffTime },
-        },
-        select: { id: true, companyId: true, branchId: true },
-      });
-
-      for (const order of staleOrders) {
-        const updated = await this.prisma.$transaction(async (tx) => {
-          const res = await tx.order.updateMany({
+          const staleOrders = await this.prisma.order.findMany({
             where: {
-              id: order.id,
+              branchId: branch.id,
               status: OrderStatus.PENDING,
+              createdAt: { lt: cutoffTime },
             },
-            data: {
-              status: OrderStatus.CANCELLED,
-              updatedAt: new Date(),
-            },
+            select: { id: true, companyId: true, branchId: true },
           });
 
-          if (res.count > 0) {
-            await tx.orderStatusHistory.create({
-              data: {
-                orderId: order.id,
-                fromStatus: OrderStatus.PENDING,
-                toStatus: OrderStatus.CANCELLED,
-                actorRole: 'SYSTEM',
-                reason: `${OrderCancellationReason.AUTO_TIMEOUT}: Pending order expired after ${timeoutMinutes} minutes`,
-              },
-            });
-            return true;
-          }
-          return false;
-        });
+          for (const order of staleOrders) {
+            const purged = await this.prisma.$transaction(async (tx) => {
+              const res = await tx.order.updateMany({
+                where: {
+                  id: order.id,
+                  status: OrderStatus.PENDING,
+                },
+                data: {
+                  status: OrderStatus.CANCELLED,
+                  updatedAt: new Date(),
+                },
+              });
 
-        if (updated) {
-          totalPurged++;
-          logger.info(
-            { orderId: order.id, branchId: branch.id },
-            'Order auto-cancelled due to timeout',
-          );
-        }
-      }
+              if (res.count > 0) {
+                await tx.orderStatusHistory.create({
+                  data: {
+                    orderId: order.id,
+                    fromStatus: OrderStatus.PENDING,
+                    toStatus: OrderStatus.CANCELLED,
+                    actorRole: 'SYSTEM',
+                    reason: `${OrderCancellationReason.AUTO_TIMEOUT}: Pending order expired after ${timeoutMinutes} minutes`,
+                  },
+                });
+                return true;
+              }
+              return false;
+            });
+
+            if (purged) {
+              totalPurged++;
+              logger.info(
+                { orderId: order.id, branchId: branch.id },
+                'Order auto-cancelled due to timeout',
+              );
+            }
+          }
+        }),
+      );
     }
 
     logger.info({ totalPurged }, 'Order timeout purge cycle completed');

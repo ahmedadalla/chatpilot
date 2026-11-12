@@ -18,7 +18,10 @@ export async function bootstrapSuperAdmin(prisma: PrismaClient): Promise<void> {
   }
 
   const email = (process.env['SUPER_ADMIN_EMAIL'] || 'admin@chatpilot.io').toLowerCase().trim();
-  const password = process.env['SUPER_ADMIN_PASSWORD'] || 'SuperAdmin_12345!Secure';
+  const password = process.env['SUPER_ADMIN_PASSWORD'];
+  if (!password) {
+    throw new Error('SUPER_ADMIN_PASSWORD environment variable is required for bootstrap');
+  }
 
   const passwordService = new PasswordService();
   const totpService = new TotpService();
@@ -53,12 +56,14 @@ export async function bootstrapSuperAdmin(prisma: PrismaClient): Promise<void> {
       }
       logger.warn('FORCE_RESET_SUPERADMIN=true — regenerating Super Admin credentials');
       // Detach sessions (owner-only table policy bypasses RLS)
-      await tx.authSession.deleteMany({ where: { userId: existingUser.id } }).catch(() => {});
+      await tx.authSession.deleteMany({ where: { userId: existingUser.id } })
+        .catch((e: unknown) => logger.warn({ e }, 'Failed to revoke old auth sessions during force reset'));
       const stillExists = await tx.$queryRaw<{ id: string }[]>`
         SELECT id FROM users WHERE id = ${existingUser.id}::uuid AND role = 'SUPER_ADMIN' LIMIT 1
       `;
       if (stillExists.length > 0) {
-        await tx.user.delete({ where: { id: existingUser.id } }).catch(() => {});
+        await tx.user.delete({ where: { id: existingUser.id } })
+          .catch((e: unknown) => logger.warn({ e }, 'Failed to delete existing super admin user during force reset'));
         logger.info(`Deleted existing Super Admin (${existingUser.id})`);
       } else {
         logger.info(`Super Admin (${existingUser.id}) already gone; proceeding with recreation`);

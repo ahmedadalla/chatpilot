@@ -17,7 +17,7 @@ export const EnvSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long'),
   JWT_ACCESS_TTL: z.coerce.number().default(900),
   REFRESH_TOKEN_TTL: z.coerce.number().default(604800),
-  KMS_MASTER_KEY: z.string().min(16).default('local_dev_kms_master_key_32_bytes_min=='),
+  KMS_MASTER_KEY: z.string().min(43, 'KMS_MASTER_KEY must be a valid 256-bit base64 string (44 chars)').default('local_dev_kms_master_key_32_bytes_min=='),
 
   // Storage
   S3_BUCKET: z.string().default('chatpilot-uploads'),

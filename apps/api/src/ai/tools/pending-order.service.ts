@@ -92,12 +92,19 @@ export class PendingOrderService {
         });
       }
 
-      // Check if expired
+      // Check if expired — use atomic update to prevent race with concurrent consume
       if (pending.expiresAt < new Date() || pending.status === 'EXPIRED') {
-        await tx.pendingOrder.update({
-          where: { id: pendingOrderId },
+        const result = await tx.pendingOrder.updateMany({
+          where: { id: pendingOrderId, status: 'OPEN' },
           data: { status: 'EXPIRED' },
         });
+        // If another request already consumed it, return the consumed record
+        if (result.count === 0) {
+          throw new ConflictException({
+            code: 'PENDING_ORDER_ALREADY_CONSUMED',
+            message: 'This order proposal has already been confirmed and placed',
+          });
+        }
         throw new UnprocessableEntityException({
           code: 'PENDING_ORDER_EXPIRED',
           message: 'The 10-minute confirmation window has expired. Please request a fresh cart.',
