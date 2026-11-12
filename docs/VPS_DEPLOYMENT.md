@@ -422,6 +422,7 @@ docker exec -i chatpilot-postgres psql -U chatpilot_migrator -d chatpilot < pris
 docker exec -i chatpilot-postgres psql -U chatpilot_migrator -d chatpilot < prisma/migrations/002_preauth_lookups.sql
 docker exec -i chatpilot-postgres psql -U chatpilot_migrator -d chatpilot < prisma/migrations/003_rls_policies.sql
 docker exec -i chatpilot-postgres psql -U chatpilot_migrator -d chatpilot < prisma/migrations/004_pgvector_hnsw.sql
+docker exec -i chatpilot-postgres psql -U chatpilot_migrator -d chatpilot < prisma/migrations/005_bootstrap_seeder_functions.sql
 ```
 
 ### 6.5 Verify Database RLS Enforcement
