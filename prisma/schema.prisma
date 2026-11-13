@@ -156,6 +156,7 @@ model Branch {
   usageEvents            UsageEvent[]
 
   @@unique([companyId, code])
+  @@unique([companyId, id])
   @@index([companyId])
   @@map("branches")
 }
