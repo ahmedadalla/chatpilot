@@ -18,13 +18,7 @@ RUN pnpm --filter @chatpilot/api build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-# Copy only the parts needed for production runtime
-COPY --from=builder /app/apps /app/apps
-COPY --from=builder /app/packages /app/packages
-COPY --from=builder /app/prisma /app/prisma
-COPY --from=builder /app/pnpm-workspace.yaml /app/package.json /app/pnpm-lock.yaml /app/turbo.json /app/
-# Fresh install using the shared .pnpm store from builder — recreates all symlinks
-RUN pnpm install --frozen-lockfile --prod
+COPY --from=builder /app /app
 EXPOSE 3001
 COPY compose/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
