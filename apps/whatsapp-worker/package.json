@@ -13,13 +13,13 @@
     "@chatpilot/config": "workspace:*",
     "@chatpilot/contracts": "workspace:*",
     "@whiskeysockets/baileys": "^6.7.5",
-    "ioredis": "^5.4.1",
-    "pino": "^9.2.0",
+    "ioredis": "^6.0.0",
+    "pino": "^10.4.0",
     "qrcode": "^1.5.3"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
     "@types/qrcode": "^1.5.5",
-    "typescript": "^5.5.3"
+    "typescript": "^7.0.2"
   }
 }

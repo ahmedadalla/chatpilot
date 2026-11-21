@@ -11,10 +11,10 @@
     "test:unit": "node --test \"dist/**/*.spec.js\" || echo \"contracts unit tests passing\""
   },
   "dependencies": {
-    "libphonenumber-js": "^1.11.7"
+    "libphonenumber-js": "^1.13.16"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
-    "typescript": "^5.5.3"
+    "typescript": "^7.0.2"
   }
 }
